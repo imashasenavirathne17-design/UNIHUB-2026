@@ -1,0 +1,75 @@
+/* Unified Event Styling System */
+
+.event-card {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    background: #FFFFFF;
+}
+
+.event-card:hover {
+    transform: translateY(-8px);
+}
+
+.shadow-soft {
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+}
+
+.shadow-card {
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
+}
+
+/* Hero Section Styles */
+.event-hero {
+    background: linear-gradient(135deg, var(--color-unihub-teal) 0%, var(--color-unihub-tealHover) 100%);
+}
+
+.hero-icon-texture {
+    opacity: 0.1;
+    pointer-events: none;
+}
+
+/* Category Buttons */
+.category-btn {
+    transition: all 0.2s ease;
+}
+
+.category-btn.active {
+    background-color: var(--color-unihub-teal);
+    color: white;
+    box-shadow: 0 4px 12px rgba(20, 184, 166, 0.2);
+}
+
+/* Custom Scrollbar for Horizontal Nav */
+.no-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+.no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+/* Table Design */
+.admin-table-container {
+    border-radius: 24px;
+    border: 1px solid var(--color-unihub-border);
+    overflow: hidden;
+    background: white;
+}
+
+.admin-table-header {
+    background: #F8F9FA;
+    font-size: 10px;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--color-unihub-textMuted);
+}
+
+/* Animation for Trending Badge */
+@keyframes trending-pulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.05); opacity: 0.8; }
+}
+
+.animate-trending {
+    animation: trending-pulse 2s infinite ease-in-out;
+}
