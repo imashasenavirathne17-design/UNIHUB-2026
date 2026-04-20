@@ -1,6 +1,8 @@
 const Booking = require('../models/labhallsystem_Booking');
 const Room = require('../models/labhallsystem_Room');
 const crypto = require('crypto');
+const User = require('../models/User');
+const sendEmail = require('../utils/sendEmail');
 
 exports.createBooking = async (req, res) => {
     const { roomId, date, startTime, endTime, recurrence, recurrenceWeeks = 12 } = req.body;
@@ -50,6 +52,33 @@ exports.createBooking = async (req, res) => {
         }
 
         const savedBookings = await Booking.insertMany(bookingsToCreate);
+
+        // Send Email Confirmation to Lecturer
+        const lecturer = await User.findById(req.user._id);
+        if (lecturer) {
+            await sendEmail({
+                email: lecturer.email,
+                subject: `UniHub Booking Confirmed: ${room.name}`,
+                html: `
+                    <div style="font-family: Arial, sans-serif; max-width: 600px; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden;">
+                        <div style="background-color: #14B8A6; padding: 20px; text-align: center; color: white;">
+                            <h2 style="margin: 0;">Facility Booking Verified</h2>
+                        </div>
+                        <div style="padding: 30px;">
+                            <p>Hello Prof. ${lecturer.name},</p>
+                            <p>Your reservation for the <b>${room.name}</b> has been mathematically verified and successfully logged onto the campus network.</p>
+                            <div style="background-color: #f3f4f6; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                                <p style="margin: 0 0 5px 0;"><b>START DATE:</b> ${new Date(date).toDateString()}</p>
+                                <p style="margin: 0 0 5px 0;"><b>TIME BLOCK:</b> ${startTime} to ${endTime}</p>
+                                ${recurrence === 'weekly' ? `<p style="margin: 0; color: #14B8A6; font-weight: bold;">[RECURRING SCHEDULE] Active for ${recurrenceWeeks} weeks</p>` : ''}
+                            </div>
+                            <p style="font-size: 12px; color: #6b7280; margin-top: 20px;">If you cancel this class, please release the room through your unified dashboard.</p>
+                        </div>
+                    </div>
+                `
+            });
+        }
+
         res.status(201).json(savedBookings);
     } catch (error) {
         res.status(500).json({ message: error.message });

@@ -113,14 +113,14 @@ const AnalyticsDashboard = () => {
                     <BarChart2 className="absolute -right-16 -top-16 w-80 h-80 text-white opacity-10 rotate-12" strokeWidth={0.5} />
                 </div>
                 <div className="px-8 md:px-16 py-14 md:py-20 relative z-10">
-                    <div className="inline-flex items-center gap-2.5 px-5 py-2 rounded-full bg-white/10 backdrop-blur-xl border border-white/20 text-[11px] font-bold text-white uppercase tracking-[0.2em] shadow-xl mb-4">
+                    <div className="inline-flex items-center gap-2.5 px-5 py-2 rounded-full bg-white/10 backdrop-blur-xl border border-white/20 text-[11px] font-bold text-white tracking-[0.2em] shadow-xl mb-4">
                         <Activity className="w-4 h-4 text-unihub-yellow" /> Facility Intelligence Hub
                     </div>
                     <h1 className="text-4xl md:text-5xl font-black text-white leading-[1.1] tracking-tighter font-display">
                         Analytics & <span className="text-unihub-yellow">Control</span>.
                     </h1>
-                    <p className="text-white/80 font-medium text-base max-w-xl leading-relaxed mt-4">
-                        Occupancy insights, maintenance management, and real-time issue resolution across all campus facilities.
+                    <p className="text-white/80 font-medium text-base max-w-xl leading-relaxed mt-4 italic opacity-90">
+                        {"Occupancy insights, maintenance management, and real-time issue resolution across all campus facilities.".split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ')}
                     </p>
                 </div>
             </div>
