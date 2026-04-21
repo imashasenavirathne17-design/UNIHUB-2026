@@ -53,28 +53,30 @@ const AdminEventDashboard = () => {
     return (
         <div className="max-w-7xl mx-auto space-y-10 pb-16">
             {/* Hero Header */}
-            <div className="relative rounded-[32px] overflow-hidden shadow-2xl mt-4 bg-gradient-to-br from-unihub-coral to-[#de3047]">
-                <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            <div className="relative rounded-[32px] overflow-hidden shadow-2xl mt-4 bg-gradient-to-br from-unihub-teal to-[#0d857a] group">
+                <div className="absolute inset-0 overflow-hidden pointer-events-none group-hover:scale-110 transition-transform duration-1000">
                     <div className="absolute top-[-20%] right-[-10%] w-[700px] h-[700px] bg-white opacity-10 blur-[120px] rounded-full mix-blend-overlay animate-pulse" />
                     <div className="absolute bottom-[-10%] left-[-10%] w-[500px] h-[500px] bg-white opacity-5 blur-[100px] rounded-full" />
                     <LayoutDashboard className="absolute -right-16 -top-16 w-80 h-80 text-white opacity-10 rotate-12" strokeWidth={0.5} />
                 </div>
-                <div className="px-8 md:px-16 py-14 md:py-20 relative z-10 flex flex-col md:flex-row items-start justify-between gap-8">
+
+                <div className="px-8 md:px-16 py-14 md:py-20 relative z-10 flex flex-col md:flex-row items-center justify-between gap-8 text-center md:text-left">
                     <div className="max-w-2xl space-y-6">
-                        <div className="inline-flex items-center gap-2.5 px-5 py-2 rounded-full bg-white/10 backdrop-blur-xl border border-white/20 text-[11px] font-bold text-white uppercase tracking-[0.2em] shadow-xl">
-                            <LayoutDashboard className="w-4 h-4 text-unihub-yellow" /> System Oversight
+                        <div className="inline-flex items-center gap-2.5 px-5 py-2 rounded-full bg-white/10 backdrop-blur-xl border border-white/20 text-[11px] font-bold text-white uppercase tracking-[0.2em] shadow-xl mx-auto md:mx-0">
+                            <LayoutDashboard className="w-4 h-4 text-unihub-yellow" /> System Oversight Nexus
                         </div>
-                        <h1 className="text-4xl md:text-6xl font-black text-white leading-[1.1] tracking-tighter font-display">
+                        <h1 className="text-4xl md:text-6xl font-black text-white leading-[1.1] tracking-normal font-display">
                             Admin <span className="text-unihub-yellow">Command Center</span>.
                         </h1>
-                        <p className="text-white/80 font-medium text-base max-w-xl leading-relaxed">
-                            High-level oversight of event performance, risk detection, and system audit logs.
+                        <p className="text-white/90 font-medium text-base md:text-lg max-w-xl leading-relaxed italic opacity-80 mx-auto md:mx-0">
+                            High-Level Oversight Of University Event Performance, Proactive Risk Detection, And Comprehensive System Audit Logs.
                         </p>
                     </div>
                     <button
                         onClick={fetchData}
-                        className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/20 text-white px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-white/20 transition-all active:scale-95 flex-shrink-0 mt-2">
-                        <RefreshCcw className="w-4 h-4 text-unihub-yellow" /> Refresh Data
+                        className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/20 text-white px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-white/20 transition-all active:scale-95 flex-shrink-0 mt-2"
+                    >
+                        <RefreshCcw className="w-4 h-4 text-unihub-yellow" /> Refresh Node
                     </button>
                 </div>
             </div>

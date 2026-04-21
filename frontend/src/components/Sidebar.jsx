@@ -4,7 +4,7 @@ import { AuthContext } from '../context/AuthContext';
 import {
     LayoutDashboard, Briefcase, Award, FileText,
     ClipboardCheck, Search, Calendar, Settings,
-    BookOpen, MapPin, Clock, Heart
+    BookOpen, MapPin, Clock, Heart, ShieldCheck, BarChart2
 } from 'lucide-react';
 
 const Sidebar = ({ isOpen }) => {
@@ -15,35 +15,38 @@ const Sidebar = ({ isOpen }) => {
         {
             title: 'Overview',
             links: [
-                { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['student', 'lecturer', 'admin', 'organization'] },
+                { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['student', 'lecturer', 'admin', 'organization', 'organizer', 'event organizer'] },
             ]
         },
         {
             title: 'Academic',
             links: [
-                { to: '/exams', label: 'Online Exams', icon: BookOpen, roles: ['student', 'lecturer', 'admin'] },
+                { to: '/exams', label: 'Online Exams', icon: BookOpen, roles: ['student', 'lecturer'] },
+                { to: '/kuppi', label: 'Kuppi Sessions', icon: ClipboardCheck, roles: ['student', 'lecturer'] },
             ]
         },
         {
             title: 'Campus Life',
             links: [
-                { to: '/lost-found', label: 'Lost & Found', icon: Search, roles: ['student', 'lecturer', 'admin'] },
-                { to: '/facilities', label: 'Facility Booking', icon: MapPin, roles: ['student', 'lecturer', 'admin'] },
+                { to: '/lost-found', label: 'Lost & Found', icon: Search, roles: ['student', 'lecturer', 'admin', 'organizer', 'event organizer'] },
+                { to: '/facilities', label: 'Facility Booking', icon: MapPin, roles: ['student', 'lecturer', 'admin', 'organizer', 'event organizer'] },
+                { to: '/facilities/analytics', label: 'Analytics Engine', icon: BarChart2, roles: ['admin'] },
             ]
         },
         {
             title: 'Community',
             links: [
-                { to: '/events', label: 'University Events', icon: Calendar, roles: ['student', 'lecturer', 'admin', 'organizer', 'organization'] },
-                { to: '/events/manage', label: 'Manage Events', icon: Settings, roles: ['lecturer', 'admin', 'organizer', 'organization'] },
-                { to: '/events/admin', label: 'Admin Dashboard', icon: LayoutDashboard, roles: ['admin'] },
+                { to: '/events', label: 'University Events', icon: Calendar, roles: ['student', 'lecturer', 'organizer', 'event organizer', 'organization'] },
+                { to: '/events/manage', label: 'Manage Events', icon: Settings, roles: ['organizer', 'event organizer'] },
+                { to: '/events/organizer-analytics', label: 'Event Analytics', icon: BarChart2, roles: ['organizer', 'event organizer'] },
+                { to: '/admin/dashboard', label: 'Admin Dashboard', icon: LayoutDashboard, roles: ['admin'] },
             ]
         },
         {
             title: 'Career Hub',
             links: [
-                { to: '/internships', label: 'Internship Board', icon: Briefcase, roles: ['student', 'lecturer', 'admin', 'organization'] },
-                { to: '/skills', label: 'Skill Marketplace', icon: Award, roles: ['student', 'lecturer', 'admin', 'organization'] },
+                { to: '/internships', label: 'Internship Board', icon: Briefcase, roles: ['student', 'lecturer', 'organization'] },
+                { to: '/skills', label: 'Skill Marketplace', icon: Award, roles: ['student', 'lecturer', 'organization'] },
                 { to: '/cv-builder', label: 'CV Builder', icon: FileText, roles: ['student'] },
                 { to: '/my-applications', label: 'My Applications', icon: ClipboardCheck, roles: ['student'] },
                 { to: '/org-dashboard', label: 'Organization Dash', icon: LayoutDashboard, roles: ['organization'] },
@@ -60,8 +63,10 @@ const Sidebar = ({ isOpen }) => {
                 {/* Logo */}
                 <div className="p-6 border-b border-white/20">
                     <Link to="/" className="flex items-center gap-3 group">
-                        <div className="w-9 h-9 rounded-xl bg-unihub-teal flex items-center justify-center text-white font-bold text-base shadow-lg group-hover:scale-105 transition-transform">U</div>
-                        <span className="text-xl font-bold text-unihub-text tracking-tight font-display">Uni<span className="text-gradient">Hub</span></span>
+                        <img src="/logo.png" alt="UniHub Logo" className="w-10 h-10 rounded-xl shadow-lg group-hover:scale-105 transition-transform object-cover" />
+                        <span className="text-2xl font-bold text-unihub-text tracking-tight font-display">
+                            Uni<span className="text-gradient">Hub</span>
+                        </span>
                     </Link>
                 </div>
 

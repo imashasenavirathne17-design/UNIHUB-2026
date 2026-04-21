@@ -19,6 +19,28 @@ import {
     TrendingUp,
     Clock
 } from 'lucide-react';
+import InternshipDetailModal from '../../components/internship/InternshipDetailModal';
+
+const INTERNSHIP_IMAGES = {
+    "software": "https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&q=80&w=800",
+    "engineer": "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&q=80&w=800",
+    "developer": "https://images.unsplash.com/photo-1542831371-29b0f74f9713?auto=format&fit=crop&q=80&w=800",
+    "data": "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&q=80&w=800",
+    "design": "https://images.unsplash.com/photo-1586717791821-3f44a563dc4c?auto=format&fit=crop&q=80&w=800",
+    "ux": "https://images.unsplash.com/photo-1586717791821-3f44a563dc4c?auto=format&fit=crop&q=80&w=800",
+    "marketing": "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&q=80&w=800",
+    "business": "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&q=80&w=800"
+};
+
+const DEFAULT_INTERNSHIP_IMAGE = "https://images.unsplash.com/photo-1521737711867-e3b97375f902?auto=format&fit=crop&q=80&w=800";
+
+const getInternshipImage = (title) => {
+    const lowerTitle = title.toLowerCase();
+    for (const [key, url] of Object.entries(INTERNSHIP_IMAGES)) {
+        if (lowerTitle.includes(key)) return url;
+    }
+    return DEFAULT_INTERNSHIP_IMAGE;
+};
 
 const DeadlineCountdown = ({ deadline }) => {
     const now = new Date();
@@ -61,6 +83,7 @@ const InternshipBoard = () => {
     const [search, setSearch] = useState('');
     const [typeFilter, setTypeFilter] = useState('');
     const [savedIds, setSavedIds] = useState(new Set());
+    const [selectedId, setSelectedId] = useState(null);
 
     const token = JSON.parse(localStorage.getItem('user'))?.token;
     const config = { headers: { Authorization: `Bearer ${token}` } };
@@ -121,12 +144,15 @@ const InternshipBoard = () => {
 
                 <div className="px-8 md:px-16 py-14 md:py-20 relative z-10">
                     <div className="max-w-3xl space-y-6">
-                        <div className="inline-flex items-center gap-2.5 px-5 py-2 rounded-full bg-white/10 backdrop-blur-xl border border-white/20 text-[11px] font-bold text-white uppercase tracking-[0.2em] shadow-xl">
+                        <div className="inline-flex items-center gap-2.5 px-5 py-2 rounded-full bg-white/10 backdrop-blur-xl border border-white/20 text-[11px] font-bold text-white tracking-[0.2em] shadow-xl">
                             <TrendingUp className="w-4 h-4 text-unihub-yellow" /> Global Career Hub
                         </div>
-                        <h1 className="text-4xl md:text-6xl font-black text-white leading-[1.1] tracking-tighter font-display">
-                            Jumpstart your career with the <span className="text-unihub-yellow">perfect internship</span>.
+                        <h1 className="text-4xl md:text-6xl font-black text-white leading-[1.1] tracking-normal font-display">
+                            Jumpstart Your Career With The <span className="text-unihub-yellow">Perfect Internship</span>.
                         </h1>
+                        <p className="text-white/90 font-medium text-base md:text-lg max-w-xl leading-relaxed italic opacity-80">
+                            {"Connecting Academic Excellence With Industry Leaders To Forge The Next Generation Of Global Professionals.".split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ')}
+                        </p>
 
                         <div className="relative flex items-center max-w-2xl bg-white rounded-2xl shadow-2xl p-1.5 focus-within:ring-4 focus-within:ring-white/30 transition-all">
                             <div className="pl-4 shrink-0">
@@ -243,31 +269,39 @@ const InternshipBoard = () => {
                         {internships.map((internship, i) => {
                             const isSaved = savedIds.has(internship._id);
                             return (
-                                <Link
+                                <div
                                     key={internship._id}
-                                    to={`/internships/${internship._id}`}
-                                    className="uni-card group flex flex-col h-full relative overflow-hidden animate-in fade-in slide-in-from-bottom-6 duration-500 shadow-xl"
+                                    onClick={() => setSelectedId(internship._id)}
+                                    className="uni-card cursor-pointer group flex flex-col h-full relative overflow-hidden animate-in fade-in slide-in-from-bottom-6 duration-500 shadow-xl"
                                     style={{ animationDelay: `${i * 80}ms` }}
                                 >
-                                    {/* Visual Header Gradient */}
-                                    <div className="h-28 bg-gradient-to-br from-unihub-teal/5 to-unihub-coral/5 relative p-8 flex justify-between items-start">
-                                        <div className="w-16 h-16 rounded-[22px] bg-white/70 backdrop-blur-xl border border-white/80 shadow-lg flex items-center justify-center text-2xl font-black text-unihub-teal group-hover:scale-110 group-hover:rotate-3 transition-all duration-500">
-                                            <span className="relative z-10">{internship.company.charAt(0)}</span>
-                                            <div className="absolute inset-0 bg-unihub-teal/5 rounded-[22px]" />
-                                        </div>
-                                        <div className="flex flex-col items-end gap-2">
+                                    {/* Visual Header with Image */}
+                                    <div className="h-44 relative overflow-hidden group">
+                                        <img 
+                                            src={getInternshipImage(internship.title)} 
+                                            alt={internship.title}
+                                            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                                        />
+                                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-60" />
+                                        
+                                        {/* Overlay Type Badge */}
+                                        <div className="absolute top-4 right-4 z-10">
                                             <span className={`badge ${
                                                 internship.type === 'Remote' ? 'badge-teal' :
                                                 internship.type === 'On-site' ? 'badge-coral' :
                                                 'badge-amber'
-                                            } border border-white/20 shadow-sm uppercase tracking-widest text-[10px]`}>{internship.type}</span>
+                                            } border border-white/20 shadow-lg uppercase tracking-widest text-[9px] backdrop-blur-md`}>
+                                                {internship.type}
+                                            </span>
                                         </div>
 
-                                        {/* Decorative Flare */}
-                                        <div className="absolute -top-10 -left-10 w-24 h-24 bg-unihub-teal/5 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity" />
+                                        {/* Company Logo Overlay */}
+                                        <div className="absolute -bottom-6 left-8 w-14 h-14 rounded-2xl bg-white shadow-2xl flex items-center justify-center text-xl font-black text-unihub-teal border border-white z-20 group-hover:scale-110 group-hover:rotate-3 transition-all duration-500">
+                                            {internship.company.charAt(0)}
+                                        </div>
                                     </div>
 
-                                    <div className="px-8 pb-8 pt-2 flex-1 flex flex-col relative">
+                                    <div className="px-8 pb-8 pt-8 flex-1 flex flex-col relative">
                                         {user?.role === 'student' && (
                                             <button
                                                 onClick={(e) => handleBookmark(e, internship._id)}
@@ -319,12 +353,24 @@ const InternshipBoard = () => {
 
                                     {/* Visual Bottom Border */}
                                     <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-unihub-teal to-unihub-coral opacity-0 group-hover:opacity-100 transition-opacity" />
-                                </Link>
+                                </div>
                             );
                         })}
                     </div>
                 )}
             </div>
+
+            {selectedId && (
+                <InternshipDetailModal 
+                    internshipId={selectedId} 
+                    onClose={() => setSelectedId(null)} 
+                    savedIds={savedIds}
+                    onBookmarkToggle={(id) => {
+                        const fakeEvent = { preventDefault: () => {}, stopPropagation: () => {} };
+                        handleBookmark(fakeEvent, id);
+                    }}
+                />
+            )}
         </div>
     );
 };

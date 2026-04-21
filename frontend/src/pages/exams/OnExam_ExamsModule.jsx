@@ -58,14 +58,14 @@ const ExamsModule = () => {
 
                 <div className="px-8 md:px-16 py-14 md:py-20 relative z-10">
                     <div className="max-w-3xl space-y-6">
-                        <div className="inline-flex items-center gap-2.5 px-5 py-2 rounded-full bg-white/10 backdrop-blur-xl border border-white/20 text-[11px] font-bold text-white uppercase tracking-[0.2em] shadow-xl">
+                        <div className="inline-flex items-center gap-2.5 px-5 py-2 rounded-full bg-white/10 backdrop-blur-xl border border-white/20 text-[11px] font-bold text-white tracking-[0.2em] shadow-xl">
                             <Database className="w-4 h-4 text-unihub-yellow" /> Intel Engine v2.0
                         </div>
                         <h1 className="text-4xl md:text-6xl font-black text-white leading-[1.1] tracking-tighter font-display">
                             Exam Mastery <span className="text-unihub-yellow">Practice</span>.
                         </h1>
-                        <p className="text-white/80 font-medium text-base max-w-2xl leading-relaxed">
-                            Master your subjects with timed MCQ practice, instant feedback, and detailed performance analytics.
+                        <p className="text-white/80 font-medium text-base max-w-2xl leading-relaxed italic opacity-90">
+                            {"Master your subjects with timed MCQ practice, instant feedback, and detailed performance analytics.".split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ')}
                         </p>
                     </div>
 

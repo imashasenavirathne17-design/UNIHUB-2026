@@ -2,6 +2,51 @@ const Event = require("../models/Event");
 const Registration = require("../models/Registration");
 const Log = require("../models/Log");
 
+// @desc    Get organizer-specific aggregate analytics
+// @route   GET /api/analytics/events/organizer
+// @access  Private (Organizer/Admin)
+const getOrganizerAnalytics = async (req, res) => {
+    try {
+        const query = req.user.role === 'admin' ? {} : { organizer: req.user._id };
+        const events = await Event.find(query);
+        
+        const eventStats = await Promise.all(events.map(async (e) => {
+            const registered = await Registration.countDocuments({ event: e._id, status: { $in: ["Registered", "Attended"] } });
+            const attended = await Registration.countDocuments({ event: e._id, attended: true });
+            
+            return {
+                _id: e._id,
+                title: e.title,
+                registeredCount: registered,
+                attendedCount: attended,
+                capacity: e.capacity,
+                category: e.category,
+                status: e.status,
+                date: e.date
+            };
+        }));
+        
+        const totalEvents = events.length;
+        const totalRegistrations = eventStats.reduce((acc, curr) => acc + curr.registeredCount, 0);
+        const totalAttended = eventStats.reduce((acc, curr) => acc + curr.attendedCount, 0);
+        const totalCapacity = eventStats.reduce((acc, curr) => acc + curr.capacity, 0);
+        
+        const averageAttendanceRate = totalRegistrations > 0 ? (totalAttended / totalRegistrations) * 100 : 0;
+        const averageFillRate = totalCapacity > 0 ? (totalRegistrations / totalCapacity) * 100 : 0;
+        
+        res.json({
+            totalEvents,
+            totalRegistrations,
+            totalAttended,
+            averageAttendanceRate: averageAttendanceRate.toFixed(1),
+            averageFillRate: averageFillRate.toFixed(1),
+            events: eventStats
+        });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
 // @desc    Get global event analytics
 // @route   GET /api/analytics/events/global
 // @access  Private (Admin)
@@ -134,6 +179,7 @@ const getAuditLogs = async (req, res) => {
 
 module.exports = {
     getGlobalEventAnalytics,
+    getOrganizerAnalytics,
     getEventAnalytics,
     getRiskDetection,
     getAuditLogs

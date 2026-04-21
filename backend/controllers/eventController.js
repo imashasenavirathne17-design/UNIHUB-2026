@@ -2,6 +2,7 @@ const Event = require("../models/Event");
 const Registration = require("../models/Registration");
 const Notification = require("../models/Notification");
 const Log = require("../models/Log");
+const sendEmail = require("../utils/sendEmail");
 
 // @desc    Create a new event
 // @route   POST /api/events
@@ -175,6 +176,72 @@ const registerForEvent = async (req, res) => {
             });
         }
 
+        // Send confirmation email
+        await sendEmail({
+            email: req.user.email,
+            subject: `Registration Confirmed: ${event.title}`,
+            html: `
+                <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: auto; padding: 30px; border: 1px solid #f0f0f0; border-radius: 16px; background-color: #ffffff;">
+                    <div style="text-align: center; margin-bottom: 30px;">
+                        <h1 style="color: #14B8A6; font-size: 28px; font-weight: 800; margin: 0;">Registration Successful!</h1>
+                        <p style="color: #64748B; font-size: 16px; margin-top: 8px;">You're on the guest list for ${event.title}</p>
+                    </div>
+                    
+                    <div style="background: linear-gradient(135deg, #14B8A6 0%, #0d9488 100%); padding: 25px; border-radius: 12px; color: white; margin-bottom: 30px;">
+                        <h2 style="margin: 0 0 15px 0; font-size: 20px; border-bottom: 1px solid rgba(255,255,255,0.2); padding-bottom: 10px;">Event Pass</h2>
+                        <table style="width: 100%; color: white;">
+                            <tr>
+                                <td style="padding: 5px 0; font-size: 12px; text-transform: uppercase; opacity: 0.8;">Event</td>
+                                <td style="padding: 5px 0; font-size: 12px; text-transform: uppercase; opacity: 0.8;">Venue</td>
+                            </tr>
+                            <tr>
+                                <td style="padding-bottom: 15px; font-weight: 700;">${event.title}</td>
+                                <td style="padding-bottom: 15px; font-weight: 700;">${event.venue}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 5px 0; font-size: 12px; text-transform: uppercase; opacity: 0.8;">Date</td>
+                                <td style="padding: 5px 0; font-size: 12px; text-transform: uppercase; opacity: 0.8;">Time</td>
+                            </tr>
+                            <tr>
+                                <td style="font-weight: 700;">${new Date(event.date).toLocaleDateString()}</td>
+                                <td style="font-weight: 700;">${event.time}</td>
+                            </tr>
+                        </table>
+                    </div>
+
+                    <div style="padding: 20px; background-color: #F8FAFC; border-radius: 12px; border: 1px solid #E2E8F0;">
+                        <p style="margin: 0; color: #475569; font-size: 14px; line-height: 1.6;">
+                            <strong>Hello ${req.user.name},</strong><br>
+                            Your registration for the upcoming campus activity has been confirmed. You can view more details and manage your attendance from your UniHub dashboard.
+                        </p>
+                    </div>
+
+                    <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #F1F5F9;">
+                        <p style="font-size: 12px; color: #94A3B8; margin: 0;">&copy; ${new Date().getFullYear()} UniHub University Platform. All Rights Reserved.</p>
+                        <p style="font-size: 10px; color: #CBD5E1; margin-top: 5px;">This is an automated system node. Please do not reply to this email.</p>
+                    </div>
+                </div>
+            `
+        });
+
+        // Check for overlapping events
+        const userRegistrations = await Registration.find({ user: req.user._id, status: "Registered" }).populate("event");
+        const overlappingEvents = userRegistrations
+            .map(reg => reg.event)
+            .filter(e => 
+                e && 
+                e._id.toString() !== event._id.toString() && 
+                new Date(e.date).toDateString() === new Date(event.date).toDateString() &&
+                e.time === event.time
+            );
+
+        if (overlappingEvents.length > 0) {
+            return res.status(201).json({ 
+                message: "Successfully registered! Warning: You have overlapping events at this time.", 
+                overlappingEvents 
+            });
+        }
+
         res.status(201).json({ message: "Successfully registered" });
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -326,6 +393,50 @@ const updateEventOverrides = async (req, res) => {
     }
 };
 
+// @desc    Broadcast message to all registered participants
+// @route   POST /api/events/:id/broadcast
+// @access  Private (Organizer/Admin)
+const broadcastMessage = async (req, res) => {
+    try {
+        const { message, type } = req.body;
+        if (!message) return res.status(400).json({ message: "Message is required" });
+
+        const event = await Event.findById(req.params.id);
+        if (!event) return res.status(404).json({ message: "Event not found" });
+
+        if (event.organizer.toString() !== req.user._id.toString() && req.user.role !== "admin") {
+            return res.status(403).json({ message: "Not authorized to send broadcasts for this event" });
+        }
+
+        const registrations = await Registration.find({ event: req.params.id, status: { $in: ["Registered", "Attended"] } });
+        
+        if (registrations.length === 0) {
+            return res.status(400).json({ message: "No participants to message" });
+        }
+
+        const notifications = registrations.map(reg => ({
+            recipient: reg.user,
+            message: `[${event.title}] ${message}`,
+            type: type || "Admin",
+            event: event._id,
+            actionUrl: `/events/${event._id}`
+        }));
+
+        await Notification.insertMany(notifications);
+
+        await Log.create({
+            user: req.user._id,
+            actionType: "BROADCAST_SENT",
+            details: `Sent broadcast to ${registrations.length} participants for event: ${event.title}`,
+            event: event._id
+        });
+
+        res.json({ message: `Broadcast sent successfully to ${registrations.length} participants` });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
 module.exports = {
     createEvent,
     getEvents,
@@ -338,5 +449,6 @@ module.exports = {
     triggerRemindersManually,
     getEventRegistrants,
     toggleAttendance,
-    updateEventOverrides
+    updateEventOverrides,
+    broadcastMessage
 };

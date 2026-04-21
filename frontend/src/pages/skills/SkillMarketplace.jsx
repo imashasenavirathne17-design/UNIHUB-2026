@@ -1,5 +1,6 @@
 import { useState, useEffect, useContext } from 'react';
 import axios from 'axios';
+import Swal from 'sweetalert2';
 import { AuthContext } from '../../context/AuthContext';
 import { 
     Search, 
@@ -21,7 +22,9 @@ import {
     DollarSign,
     MoreVertical,
     TrendingUp,
-    X
+    Send,
+    X,
+    Clock
 } from 'lucide-react';
 
 const CATEGORIES = [
@@ -37,6 +40,19 @@ const CATEGORIES = [
 
 const levelLabels = ['', 'Beginner', 'Elementary', 'Intermediate', 'Advanced', 'Expert'];
 const levelColors = ['bg-gray-200', 'bg-red-400', 'bg-yellow-400', 'bg-blue-400', 'bg-unihub-teal', 'bg-emerald-500'];
+
+const CATEGORY_IMAGES = {
+    "Graphics & Design": "https://images.unsplash.com/photo-1572044162444-ad60f128bde2?auto=format&fit=crop&q=80&w=800",
+    "Programming & Tech": "https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&q=80&w=800",
+    "Digital Marketing": "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&q=80&w=800",
+    "Video & Animation": "https://images.unsplash.com/photo-1492724441997-5dc865305da7?auto=format&fit=crop&q=80&w=800",
+    "Writing & Translation": "https://images.unsplash.com/photo-1455391727215-2f4749b7e79f?auto=format&fit=crop&q=80&w=800",
+    "Music & Audio": "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&q=80&w=800",
+    "Business": "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&q=80&w=800",
+    "Data": "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&q=80&w=800"
+};
+
+const DEFAULT_GIG_IMAGE = "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&q=80&w=800";
 
 const StarRating = ({ value, onChange, readonly = false }) => (
     <div className="flex gap-0.5">
@@ -66,11 +82,21 @@ const GigCard = ({ gig, user, onReview, onEdit, onDelete, onView, showControls =
             onClick={() => onView && onView(gig)}
             className="uni-card group flex flex-col h-full relative cursor-pointer overflow-hidden hover:-translate-y-2 hover:shadow-2xl transition-all duration-500"
         >
-            {/* Visual Header */}
-            <div className="h-44 bg-gradient-to-br from-unihub-teal/10 to-unihub-coral/10 relative flex items-center justify-center overflow-hidden border-b border-white/40">
-                <span className="text-unihub-teal font-black text-3xl opacity-10 group-hover:opacity-30 group-hover:scale-110 transition-all duration-700 uppercase tracking-tighter select-none">
-                    {gig.category}
-                </span>
+            {/* Visual Header with Image */}
+            <div className="h-48 relative overflow-hidden group">
+                <img 
+                    src={CATEGORY_IMAGES[gig.category] || DEFAULT_GIG_IMAGE} 
+                    alt={gig.title}
+                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-60" />
+                
+                {/* Overlay Badge */}
+                <div className="absolute top-4 left-4">
+                    <span className="px-3 py-1 rounded-lg bg-unihub-teal/90 backdrop-blur-md text-[10px] font-black text-white uppercase tracking-widest border border-white/20 shadow-lg">
+                        {gig.category}
+                    </span>
+                </div>
                 {isOwn && showControls && (
                     <div className="absolute top-4 right-4 flex gap-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button 
@@ -194,31 +220,78 @@ const SkillMarketplace = () => {
     };
 
     const handleSaveGig = async () => {
+        const isCreate = gigModal.mode === 'create';
         try {
-            if (gigModal.mode === 'create') {
+            if (isCreate) {
                 await axios.post('http://localhost:5000/api/skills/gigs', gigForm, config);
-                setMessage({ type: 'success', text: 'Gig published!' });
             } else {
                 await axios.put(`http://localhost:5000/api/skills/gigs/${gigModal.data._id}`, gigForm, config);
-                setMessage({ type: 'success', text: 'Gig updated!' });
             }
             setGigModal(null);
             fetchData();
-            setTimeout(() => setMessage(null), 2000);
+            Swal.fire({
+                title: isCreate ? 'Gig Published!' : 'Gig Updated!',
+                text: isCreate
+                    ? `"${gigForm.title}" is now live in the marketplace.`
+                    : `"${gigForm.title}" has been updated successfully.`,
+                icon: 'success',
+                timer: 2000,
+                showConfirmButton: false,
+                iconColor: '#14B8A6'
+            });
         } catch (err) {
-            setMessage({ type: 'error', text: err.response?.data?.message || 'Failed to save gig.' });
+            Swal.fire({
+                title: 'Error',
+                text: err.response?.data?.message || 'Failed to save gig.',
+                icon: 'error',
+                showConfirmButton: true,
+                confirmButtonColor: '#FF6B6B'
+            });
         }
     };
 
     const handleDeleteGig = async (id) => {
-        if (!window.confirm('Are you sure you want to delete this gig?')) return;
+        const result = await Swal.fire({
+            title: 'Delete Gig?',
+            text: 'This will permanently remove your gig and all associated reviews.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#FF6B6B',
+            cancelButtonColor: '#E2E8F0',
+            confirmButtonText: 'Yes, Delete',
+            cancelButtonText: 'Abort',
+            background: '#ffffff',
+            color: '#0F172A',
+            iconColor: '#FF6B6B',
+            customClass: {
+                popup: 'rounded-3xl shadow-2xl',
+                title: 'font-black',
+                confirmButton: 'rounded-xl font-black text-sm',
+                cancelButton: 'rounded-xl font-black text-sm text-slate-500',
+            }
+        });
+
+        if (!result.isConfirmed) return;
+
         try {
             await axios.delete(`http://localhost:5000/api/skills/gigs/${id}`, config);
             fetchData();
-            setMessage({ type: 'success', text: 'Gig removed!' });
-            setTimeout(() => setMessage(null), 2000);
+            Swal.fire({
+                title: 'Gig Removed',
+                text: 'Your gig has been permanently deleted.',
+                icon: 'success',
+                timer: 2000,
+                showConfirmButton: false,
+                iconColor: '#14B8A6'
+            });
         } catch (err) {
-            setMessage({ type: 'error', text: 'Failed to delete.' });
+            Swal.fire({
+                title: 'Delete Failed',
+                text: 'Could not remove this gig. Please try again.',
+                icon: 'error',
+                showConfirmButton: true,
+                confirmButtonColor: '#FF6B6B'
+            });
         }
     };
 
@@ -282,23 +355,26 @@ const SkillMarketplace = () => {
                 
                 <div className="px-8 md:px-16 py-14 md:py-20 relative z-10">
                     <div className="max-w-3xl space-y-6">
-                        <div className="inline-flex items-center gap-2.5 px-5 py-2 rounded-full bg-white/10 backdrop-blur-xl border border-white/20 text-[11px] font-bold text-white uppercase tracking-[0.2em] shadow-xl">
+                        <div className="inline-flex items-center gap-2.5 px-5 py-2 rounded-full bg-white/10 backdrop-blur-xl border border-white/20 text-[11px] font-bold text-white tracking-[0.2em] shadow-xl">
                             <Zap className="w-4 h-4 text-unihub-yellow" /> Peer Services Exchange
                         </div>
-                        <h1 className="text-4xl md:text-6xl font-black text-white leading-[1.1] tracking-tighter font-display">
-                            Find the perfect <span className="text-unihub-yellow">peer service</span> for your project.
+                        <h1 className="text-4xl md:text-6xl font-black text-white leading-[1.1] tracking-normal font-display">
+                            Find The Perfect <span className="text-unihub-yellow">Peer Service</span>.
                         </h1>
+                        <p className="text-white/90 font-medium text-base md:text-lg max-w-xl leading-relaxed italic opacity-80">
+                            {"Explore A Diverse Ecosystem Of Student-Led Services, Collaborate With Talented Peers, And Accelerate Your Projects With Relative Ease.".split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ')}
+                        </p>
                         
-                        <div className="relative flex items-center max-w-2xl bg-white rounded-2xl shadow-2xl overflow-hidden p-1.5">
+                        <div className="relative flex items-center max-w-2xl bg-white rounded-2xl shadow-2xl overflow-hidden p-1.5 focus-within:ring-4 focus-within:ring-white/30 transition-all">
                             <Search className="w-5 h-5 text-unihub-teal ml-4 flex-shrink-0" />
                             <input 
                                 type="text" 
                                 placeholder='Try "Logo Design" or "Python Help"' 
-                                className="w-full py-3 px-4 bg-transparent outline-none text-unihub-text font-medium placeholder:text-slate-400 text-sm"
+                                className="w-full py-3 px-4 bg-transparent outline-none text-unihub-text font-semibold placeholder:text-slate-400 text-sm font-display"
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                             />
-                            <button className="bg-unihub-teal text-white px-7 py-3 rounded-xl font-black text-xs uppercase tracking-widest flex-shrink-0 hover:bg-[#0d857a] transition-all active:scale-95 mr-1">
+                            <button className="btn btn-primary flex-shrink-0 mr-1">
                                 Search
                             </button>
                         </div>
@@ -347,17 +423,13 @@ const SkillMarketplace = () => {
                     <div className="flex gap-3">
                         <button 
                             onClick={() => setActiveTab('marketplace')}
-                            className={`px-8 py-4 rounded-[18px] text-[10px] font-black uppercase tracking-widest transition-all shadow-xl font-display ${
-                                activeTab === 'marketplace' ? 'btn btn-primary' : 'glass border border-white/60 text-unihub-textMuted hover:text-unihub-text'
-                            }`}
+                            className={`btn ${activeTab === 'marketplace' ? 'btn-primary' : 'btn-glass border border-white/60'}`}
                         >
                             MARKETPLACE
                         </button>
                         <button 
                             onClick={() => setActiveTab('my-profile')}
-                            className={`px-8 py-4 rounded-[18px] text-[10px] font-black uppercase tracking-widest transition-all shadow-xl font-display ${
-                                activeTab === 'my-profile' ? 'btn btn-primary' : 'glass border border-white/60 text-unihub-textMuted hover:text-unihub-text'
-                            }`}
+                            className={`btn ${activeTab === 'my-profile' ? 'btn-primary' : 'btn-glass border border-white/60'}`}
                         >
                             MY PROFILE
                         </button>
@@ -396,49 +468,73 @@ const SkillMarketplace = () => {
                 )}
 
                 {activeTab === 'my-profile' && (
-                    <div className="space-y-8">
-                        {/* ... (Profile header remains same) */}
-                        <div className="bg-white border border-unihub-border rounded-3xl overflow-hidden shadow-soft">
-                            <div className="bg-gradient-to-r from-unihub-teal to-unihub-tealHover px-10 py-12 flex flex-col md:flex-row items-center justify-between text-white gap-8">
-                                <div className="flex flex-col md:flex-row items-center gap-6 text-center md:text-left">
-                                    <div className="w-24 h-24 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-4xl font-black ring-8 ring-white/10">
-                                        {user?.name?.charAt(0)}
+                    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-6 duration-700">
+                        {/* Unified Profile Hero Header */}
+                        <div className="relative rounded-[32px] overflow-hidden shadow-2xl bg-gradient-to-br from-unihub-teal to-[#0d857a] group">
+                            <div className="absolute inset-0 overflow-hidden pointer-events-none group-hover:scale-110 transition-transform duration-1000">
+                                <div className="absolute top-[-20%] right-[-10%] w-[700px] h-[700px] bg-white opacity-10 blur-[120px] rounded-full mix-blend-overlay animate-pulse" />
+                                <div className="absolute bottom-[-10%] left-[-10%] w-[500px] h-[500px] bg-white opacity-5 blur-[100px] rounded-full" />
+                                <Globe className="absolute -right-16 -top-16 w-80 h-80 text-white opacity-10 rotate-12" strokeWidth={0.5} />
+                            </div>
+
+                            <div className="px-10 py-12 relative z-10 flex flex-col md:flex-row items-center justify-between text-white gap-8">
+                                <div className="flex flex-col md:flex-row items-center gap-8 text-center md:text-left">
+                                    <div className="relative group/avatar">
+                                        <div className="w-28 h-28 rounded-[28px] bg-white/20 backdrop-blur-md flex items-center justify-center text-4xl font-black ring-8 ring-white/10 shadow-2xl transition-transform group-hover/avatar:scale-105 group-hover/avatar:-rotate-3 duration-500">
+                                            {user?.name?.charAt(0)}
+                                        </div>
+                                        <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-unihub-yellow rounded-xl flex items-center justify-center shadow-lg">
+                                            <Award className="w-4 h-4 text-unihub-text" />
+                                        </div>
                                     </div>
-                                    <div className="space-y-1">
-                                        <h2 className="text-3xl font-black">{user?.name}</h2>
-                                        <div className="flex justify-center md:justify-start gap-4 pt-2">
-                                            {myProfile?.githubUrl && <a href={myProfile.githubUrl} target="_blank" rel="noreferrer" className="hover:text-white transition-all"><Github className="w-5 h-5" /></a>}
-                                            {myProfile?.linkedinUrl && <a href={myProfile.linkedinUrl} target="_blank" rel="noreferrer" className="hover:text-white transition-all"><Linkedin className="w-5 h-5" /></a>}
+                                    <div className="space-y-2">
+                                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-[10px] font-black uppercase tracking-widest mb-1 shadow-inner">
+                                            Verified Service Provider
+                                        </div>
+                                        <h2 className="text-4xl font-black tracking-tight font-display leading-tight">{user?.name?.split(' ')[0]} <span className="text-unihub-yellow">{user?.name?.split(' ').slice(1).join(' ')}</span></h2>
+                                        <div className="flex justify-center md:justify-start gap-5 pt-2">
+                                            {myProfile?.githubUrl && (
+                                                <a href={myProfile.githubUrl} target="_blank" rel="noreferrer" className="w-9 h-9 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white hover:text-unihub-teal transition-all shadow-md group/link">
+                                                    <Github className="w-5 h-5 group-hover/link:scale-110 transition-transform" />
+                                                </a>
+                                            )}
+                                            {myProfile?.linkedinUrl && (
+                                                <a href={myProfile.linkedinUrl} target="_blank" rel="noreferrer" className="w-9 h-9 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white hover:text-unihub-teal transition-all shadow-md group/link">
+                                                    <Linkedin className="w-5 h-5 group-hover/link:scale-110 transition-transform" />
+                                                </a>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
-                                <div className="flex gap-4">
+                                <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
                                     <button 
                                         onClick={() => setEditProfileMode(!editProfileMode)} 
-                                        className="bg-white text-unihub-teal px-6 py-4 rounded-xl font-black text-xs hover:shadow-lg transition-all active:scale-95"
+                                        className="btn bg-white/10 backdrop-blur-xl border border-white/40 text-white hover:bg-white hover:text-unihub-teal px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl transition-all"
                                     >
-                                        {editProfileMode ? 'CANCEL' : 'EDIT BIO'}
+                                        {editProfileMode ? 'Abort Edits' : 'Sync Profile Bio'}
                                     </button>
                                     <button 
                                         onClick={() => {
                                             setGigForm({ title: '', description: '', category: CATEGORIES[0], price: 0, deliveryTime: '3 days' });
                                             setGigModal({ mode: 'create' });
                                         }}
-                                        className="bg-unihub-yellow text-unihub-text px-6 py-4 rounded-xl font-black text-xs hover:shadow-lg transition-all active:scale-95 flex items-center gap-2"
+                                        className="btn bg-unihub-yellow text-unihub-text hover:bg-amber-300 px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl flex items-center justify-center gap-2 active:scale-95 transition-all"
                                     >
-                                        <Plus className="w-4 h-4" /> CREATE NEW GIG
+                                        <Plus className="w-5 h-5" /> Initialize Gig
                                     </button>
                                 </div>
                             </div>
+                        </div>
 
+                        <div className="bg-white border border-unihub-border rounded-[32px] overflow-hidden shadow-soft">
                             <div className="p-10">
                                 {editProfileMode ? (
                                     <div className="space-y-6 max-w-2xl">
                                         <div>
-                                            <label className="block text-xs font-bold text-unihub-textMuted uppercase tracking-wider mb-2">My Professional Bio</label>
+                                            <label className="uni-label">My Professional Bio</label>
                                             <textarea 
                                                 rows={4} 
-                                                className="w-full border border-unihub-border rounded-2xl py-4 px-5 text-sm focus:outline-none focus:ring-4 focus:ring-unihub-teal/20 bg-gray-50 transition-all font-medium" 
+                                                className="uni-input text-sm" 
                                                 value={profileForm.bio} 
                                                 onChange={e => setProfileForm(f => ({ ...f, bio: e.target.value }))} 
                                                 placeholder="Tell your peers about your background..." 
@@ -446,15 +542,15 @@ const SkillMarketplace = () => {
                                         </div>
                                         <div className="grid grid-cols-2 gap-4">
                                             <div>
-                                                <label className="block text-xs font-bold text-unihub-textMuted uppercase tracking-wider mb-2">GitHub</label>
-                                                <input type="text" className="w-full border border-unihub-border rounded-xl py-3 px-4 text-sm bg-gray-50" value={profileForm.githubUrl} onChange={e => setProfileForm(f => ({ ...f, githubUrl: e.target.value }))} placeholder="URL" />
+                                                <label className="uni-label">GitHub</label>
+                                                <input type="text" className="uni-input" value={profileForm.githubUrl} onChange={e => setProfileForm(f => ({ ...f, githubUrl: e.target.value }))} placeholder="URL" />
                                             </div>
                                             <div>
-                                                <label className="block text-xs font-bold text-unihub-textMuted uppercase tracking-wider mb-2">LinkedIn</label>
-                                                <input type="text" className="w-full border border-unihub-border rounded-xl py-3 px-4 text-sm bg-gray-50" value={profileForm.linkedinUrl} onChange={e => setProfileForm(f => ({ ...f, linkedinUrl: e.target.value }))} placeholder="URL" />
+                                                <label className="uni-label">LinkedIn</label>
+                                                <input type="text" className="uni-input" value={profileForm.linkedinUrl} onChange={e => setProfileForm(f => ({ ...f, linkedinUrl: e.target.value }))} placeholder="URL" />
                                             </div>
                                         </div>
-                                        <button onClick={handleSaveProfile} className="bg-unihub-teal text-white font-black py-4 px-10 rounded-2xl shadow-lg">SAVE CHANGES</button>
+                                        <button onClick={handleSaveProfile} className="btn btn-primary">SAVE CHANGES</button>
                                     </div>
                                 ) : (
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
@@ -492,14 +588,14 @@ const SkillMarketplace = () => {
                                                 </div>
                                             </div>
                                         </div>
-                                        {/* Performance matrix area */}
+                                        
                                         <div className="space-y-6">
                                             <div className="bg-unihub-teal/5 p-8 rounded-[40px] border border-unihub-teal/10">
-                                                <h3 className="font-black text-unihub-text mb-6">Performance Matrix</h3>
+                                                <h3 className="font-black text-unihub-text mb-6 uppercase tracking-tighter text-sm">Performance Matrix</h3>
                                                 <div className="space-y-6">
                                                     <div className="flex justify-between items-center bg-white p-4 rounded-2xl shadow-soft">
-                                                        <span className="text-xs font-bold text-unihub-textMuted uppercase tracking-wider">Active Gigs</span>
-                                                        <span className="font-black text-unihub-text text-unihub-teal">{myProfile?.gigs?.length || 0}</span>
+                                                        <span className="text-[10px] font-black text-unihub-textMuted uppercase tracking-wider">Active Gigs</span>
+                                                        <span className="font-black text-unihub-teal">{myProfile?.gigs?.length || 0}</span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -513,17 +609,17 @@ const SkillMarketplace = () => {
                         <div className="space-y-6">
                             <h3 className="text-xl font-black text-unihub-text flex items-center gap-3">
                                 <TrendingUp className="w-6 h-6 text-unihub-teal" />
-                                My Marketplace Activity
+                                Marketplace Records
                             </h3>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div className="bg-white border border-unihub-border rounded-3xl p-8 shadow-soft space-y-6">
-                                    <h4 className="font-black text-unihub-text text-sm uppercase tracking-wider text-unihub-teal">Services I Ordered</h4>
+                                    <h4 className="font-black text-unihub-text text-xs uppercase tracking-wider text-unihub-teal">Outgoing Orders</h4>
                                     <div className="space-y-4">
                                         {myOrders.filter(o => o.buyerId?._id === user?._id).map(order => (
                                             <div 
                                                 key={order._id} 
                                                 onClick={() => setViewOrderModal(order)}
-                                                className="flex items-center gap-4 p-4 rounded-2xl bg-gray-50 border border-gray-100 hover:border-unihub-teal/30 hover:bg-unihub-teal-light/20 transition-all cursor-pointer group"
+                                                className="flex items-center gap-4 p-4 rounded-2xl bg-gray-50 border border-gray-100 hover:border-unihub-teal/30 hover:bg-unihub-teal/5 transition-all cursor-pointer group"
                                             >
                                                 <div className="w-10 h-10 rounded-xl bg-unihub-teal flex items-center justify-center text-white font-black group-hover:scale-110 transition-transform">
                                                     {order.sellerId?.name?.[0]}
@@ -552,7 +648,7 @@ const SkillMarketplace = () => {
                                 </div>
 
                                 <div className="bg-white border border-unihub-border rounded-3xl p-8 shadow-soft space-y-6">
-                                    <h4 className="font-black text-unihub-text text-sm uppercase tracking-wider text-unihub-coral">Orders I Received</h4>
+                                    <h4 className="font-black text-unihub-text text-xs uppercase tracking-wider text-unihub-coral">Incoming Orders</h4>
                                     <div className="space-y-4">
                                         {myOrders.filter(o => o.sellerId?._id === user?._id).map(order => (
                                             <div 
@@ -593,88 +689,123 @@ const SkillMarketplace = () => {
 
             {/* View Gig Detailed Modal */}
             {viewGigModal && (
-                <div className="fixed inset-0 bg-unihub-text/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-[40px] shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-                        <div className="h-48 bg-gradient-to-r from-unihub-teal to-unihub-tealHover relative p-10 flex items-end">
-                            <button onClick={() => setViewGigModal(null)} className="absolute top-8 right-8 text-white/50 hover:text-white transition-all text-2xl font-black">
-                                <X className="w-8 h-8" />
-                            </button>
-                            <div className="flex items-center gap-6">
-                                <div className="w-20 h-20 rounded-2xl bg-white shadow-xl flex items-center justify-center text-3xl font-black text-unihub-teal">
-                                    {(viewGigModal.userId?.name || (viewGigModal.userId === user?._id ? user?.name : 'U'))[0]}
-                                </div>
-                                <div className="text-white">
-                                    <h3 className="text-sm font-bold opacity-80 uppercase tracking-widest">{viewGigModal.category}</h3>
-                                    <h2 className="text-3xl font-black leading-tight">{viewGigModal.title}</h2>
+                <div className="uni-modal-overlay">
+                    <div className="uni-modal max-w-2xl w-full overflow-hidden flex flex-col">
+                        {/* Header Section */}
+                        <div className="px-7 py-5 border-b border-slate-100 flex items-center gap-3 bg-white text-left">
+                            <div className="w-10 h-10 rounded-xl bg-unihub-teal/10 flex items-center justify-center flex-shrink-0">
+                                <Award className="w-5 h-5 text-unihub-teal" />
+                            </div>
+                            <div className="flex-1">
+                                <h2 className="text-base font-bold text-unihub-text leading-tight">{viewGigModal.title}</h2>
+                                <div className="flex items-center gap-2 mt-0.5">
+                                    <span className="text-xs text-unihub-textMuted font-medium">{viewGigModal.userId?.name || user?.name}</span>
+                                    <span className="w-1 h-1 rounded-full bg-slate-300" />
+                                    <span className="text-xs text-unihub-textMuted font-medium">{viewGigModal.category}</span>
                                 </div>
                             </div>
+                            <button onClick={() => setViewGigModal(null)} className="w-9 h-9 flex items-center justify-center bg-unihub-coral hover:bg-unihub-coralHover text-white rounded-xl shadow-lg shadow-unihub-coral/20 transition-all active:scale-90">
+                                <X className="w-5 h-5" />
+                            </button>
                         </div>
-                        
-                        <div className="p-10 overflow-y-auto flex-1 grid grid-cols-1 md:grid-cols-3 gap-12">
-                            <div className="md:col-span-2 space-y-8">
-                                <div className="space-y-4">
-                                    <h4 className="text-xs font-black text-unihub-textMuted uppercase tracking-widest">About This Service</h4>
-                                    <p className="text-unihub-text text-lg leading-relaxed font-medium italic">
+
+                        <div className="p-7 space-y-8 max-h-[calc(90vh-80px)] overflow-y-auto no-scrollbar text-left">
+                            {/* Action Bar */}
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-2 h-2 rounded-full bg-unihub-teal animate-pulse" />
+                                    <span className="text-[10px] font-bold text-unihub-teal uppercase tracking-widest">Active Peer Service</span>
+                                </div>
+                                <div className="text-right">
+                                    <span className="text-[10px] font-black text-unihub-teal uppercase tracking-widest px-3 py-1 bg-unihub-teal/5 rounded-lg border border-unihub-teal/10">Verified Provider</span>
+                                </div>
+                            </div>
+
+                            {/* Quick Stats Grid */}
+                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                                {[
+                                    { label: 'Service Fee', value: viewGigModal.price > 0 ? `LKR ${viewGigModal.price}` : 'FREE', icon: DollarSign },
+                                    { label: 'Category', value: viewGigModal.category, icon: Award },
+                                    { label: 'Delivery', value: viewGigModal.deliveryTime || '3 days', icon: Clock },
+                                    { label: 'Rating', value: `${viewGigModal.avgRating?.toFixed(1) || '0.0'} (${viewGigModal.reviewCount || 0})`, icon: Star },
+                                ].map(({ label, value, icon: Icon }) => (
+                                    <div key={label} className="p-4 bg-slate-50/50 rounded-2xl border border-slate-100">
+                                        <p className="text-[9px] font-bold text-unihub-textMuted uppercase tracking-widest mb-1">{label}</p>
+                                        <p className="text-sm font-bold text-unihub-text flex items-center gap-2">
+                                            <Icon className={`w-3.5 h-3.5 ${label === 'Rating' ? 'text-unihub-yellow fill-unihub-yellow' : 'text-unihub-teal'}`} />
+                                            {value}
+                                        </p>
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* Service Description */}
+                            <div>
+                                <label className="uni-label">About This Service</label>
+                                <div className="p-5 bg-white rounded-2xl border border-slate-100 shadow-sm">
+                                    <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-line italic text-left">
                                         "{viewGigModal.description}"
                                     </p>
                                 </div>
-                                
-                                <div className="flex gap-10">
-                                    <div className="space-y-1">
-                                        <p className="text-[10px] font-black text-unihub-textMuted uppercase tracking-tighter">Delivery Time</p>
-                                        <div className="flex items-center gap-2 text-unihub-text font-black">
-                                            <Calendar className="w-4 h-4 text-unihub-teal" />
-                                            {viewGigModal.deliveryTime || '3 days'}
-                                        </div>
-                                    </div>
-                                    <div className="space-y-1">
-                                        <p className="text-[10px] font-black text-unihub-textMuted uppercase tracking-tighter">Rating</p>
-                                        <div className="flex items-center gap-2 text-unihub-text font-black">
-                                            <Star className="w-4 h-4 text-unihub-yellow fill-unihub-yellow" />
-                                            {viewGigModal.avgRating?.toFixed(1) || '0.0'} ({viewGigModal.reviewCount || 0})
-                                        </div>
-                                    </div>
-                                </div>
                             </div>
-                            
-                            <div className="bg-unihub-section rounded-[40px] p-8 space-y-8 flex flex-col justify-between border border-unihub-borderMuted">
-                                <div className="space-y-4">
-                                    <div className="flex justify-between items-center">
-                                        <span className="text-xs font-black text-unihub-textMuted uppercase">Standard Fee</span>
-                                        <span className="text-2xl font-black text-unihub-teal">
-                                            {viewGigModal.price > 0 ? `LKR ${viewGigModal.price}` : 'FREE'}
-                                        </span>
-                                    </div>
-                                    <p className="text-[10px] text-unihub-textMuted font-bold italic leading-tight">
-                                        * Peer-to-peer service. Please contact for specific requirements.
-                                    </p>
-                                </div>
-                                
+
+                            {/* Terms of Service */}
+                            <div>
+                                <label className="uni-label">Service Terms</label>
                                 <div className="space-y-3">
-                                    {viewGigModal.userId?._id !== user?._id && viewGigModal.userId !== user?._id && (
-                                        <>
-                                            <button 
-                                                onClick={handleOrderService}
-                                                className="w-full bg-unihub-teal text-white font-black py-4 rounded-2xl shadow-lg hover:bg-unihub-tealHover transition-all active:scale-95"
-                                            >
-                                                ORDER SERVICE
-                                            </button>
-                                            <button 
-                                                onClick={() => {
-                                                    setReviewModal({ targetId: viewGigModal.userId?._id || viewGigModal.userId, targetName: viewGigModal.userId?.name || user?.name });
-                                                    setViewGigModal(null);
-                                                }}
-                                                className="w-full bg-white border border-unihub-border text-unihub-text font-black py-4 rounded-2xl hover:bg-gray-50 transition-all active:scale-95"
-                                            >
-                                                CONTACT PEER
-                                            </button>
-                                        </>
-                                    )}
-                                    {(viewGigModal.userId?._id === user?._id || viewGigModal.userId === user?._id) && (
-                                        <p className="text-center text-xs font-black text-unihub-teal italic">Sharing your talents with UniHub!</p>
-                                    )}
+                                    {[
+                                        "Direct peer-to-peer collaboration and support.",
+                                        "Secure payment handling through UniHub platform.",
+                                        "Guaranteed delivery within the specified timeframe."
+                                    ].map((term, i) => (
+                                        <div key={i} className="flex items-center gap-4 px-4 py-3 rounded-xl bg-slate-50/50 border border-slate-100 group hover:border-unihub-teal/30 transition-all">
+                                            <div className="w-2 h-2 rounded-full bg-unihub-teal/40 group-hover:bg-unihub-teal" />
+                                            <span className="text-sm text-slate-700 font-medium">{term}</span>
+                                        </div>
+                                    ))}
                                 </div>
                             </div>
+
+                            {/* Actions Section */}
+                            <div className="pt-4 border-t border-slate-100">
+                                {(viewGigModal.userId?._id !== user?._id && viewGigModal.userId !== user?._id) ? (
+                                    <div className="space-y-4">
+                                        <button 
+                                            onClick={handleOrderService}
+                                            className="btn btn-primary w-full py-4 text-xs font-bold uppercase tracking-[0.2em] flex items-center justify-center gap-3 active:scale-95 shadow-xl transition-all"
+                                        >
+                                            <Zap className="w-4 h-4 fill-white" />
+                                            Request Service
+                                        </button>
+                                        <button 
+                                            onClick={() => {
+                                                setReviewModal({ targetId: viewGigModal.userId?._id || viewGigModal.userId, targetName: viewGigModal.userId?.name || user?.name });
+                                                setViewGigModal(null);
+                                            }}
+                                            className="w-full py-4 bg-slate-50 text-slate-400 font-bold text-[10px] uppercase tracking-[0.2em] rounded-2xl border border-slate-100 hover:text-unihub-teal hover:bg-white transition-all active:scale-95 flex items-center justify-center gap-2"
+                                        >
+                                            <Send className="w-4 h-4" />
+                                            Direct Contact Peer
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="p-5 bg-unihub-teal/5 rounded-2xl border border-unihub-teal/10 flex items-center gap-4">
+                                        <div className="w-10 h-10 rounded-xl bg-white shadow-sm flex items-center justify-center">
+                                            <Award className="w-5 h-5 text-unihub-teal" />
+                                        </div>
+                                        <p className="text-xs font-bold text-unihub-teal uppercase tracking-widest italic">
+                                            You are viewing your own service record.
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Footer */}
+                        <div className="px-7 py-4 bg-slate-50 border-t border-slate-100 flex justify-center">
+                            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.4em]">
+                                UniHub Peer Network &copy; 2026 • Reference ID: {viewGigModal?._id?.slice(-8).toUpperCase()}
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -682,80 +813,111 @@ const SkillMarketplace = () => {
 
             {/* Gig Modal (Create/Edit) */}
             {gigModal && (
-                <div className="fixed inset-0 bg-unihub-text/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-[40px] shadow-2xl p-10 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-                        <h3 className="text-2xl font-black text-unihub-text mb-8 flex items-center gap-3">
-                            {gigModal.mode === 'create' ? <Plus className="w-7 h-7 text-unihub-teal" /> : <Edit3 className="w-7 h-7 text-unihub-teal" />}
-                            {gigModal.mode === 'create' ? 'Publish a New Service' : 'Update Your Gig'}
-                        </h3>
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 relative">
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="space-y-6 md:col-span-2">
-                                <div>
-                                    <label className="block text-xs font-bold text-unihub-textMuted uppercase tracking-wider mb-2">Gig Title (The catchy part)</label>
-                                    <input 
-                                        type="text" 
-                                        className="w-full border border-unihub-border rounded-xl py-4 px-5 text-sm font-bold bg-gray-50 focus:bg-white focus:ring-4 focus:ring-unihub-teal/20 outline-none transition-all" 
-                                        value={gigForm.title} 
-                                        onChange={e => setGigForm(f => ({ ...f, title: e.target.value }))} 
-                                        placeholder="e.g. I will design your university club logo" 
-                                    />
+                        {/* Header Row */}
+                        <div className="flex items-start justify-between mb-6">
+                            <div className="flex items-center gap-3">
+                                <div className="w-12 h-12 bg-unihub-teal rounded-2xl flex items-center justify-center text-white font-black text-xl shadow-md flex-shrink-0">
+                                    {gigModal.mode === 'create' ? 'G' : (gigForm.title?.[0]?.toUpperCase() || 'G')}
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-bold text-unihub-textMuted uppercase tracking-wider mb-2">Description (Details of your service)</label>
-                                    <textarea 
-                                        rows={4} 
-                                        className="w-full border border-unihub-border rounded-2xl py-4 px-5 text-sm bg-gray-50 focus:bg-white focus:ring-4 focus:ring-unihub-teal/20 outline-none transition-all font-medium" 
-                                        value={gigForm.description} 
-                                        onChange={e => setGigForm(f => ({ ...f, description: e.target.value }))} 
-                                        placeholder="What exactly will you provide? Be specific..." 
-                                    />
+                                    <h2 className="text-lg font-black text-slate-800 leading-tight">
+                                        {gigModal.mode === 'create' ? 'Create Gig' : 'Edit Gig'}
+                                    </h2>
+                                    <p className="text-xs text-slate-400 font-medium">
+                                        {gigModal.mode === 'create' ? 'Skill Marketplace' : gigForm.category}
+                                    </p>
                                 </div>
                             </div>
-                            
-                            <div>
-                                <label className="block text-xs font-bold text-unihub-textMuted uppercase tracking-wider mb-2">Category</label>
-                                <select 
-                                    className="w-full border border-unihub-border rounded-xl py-4 px-4 text-sm font-bold bg-gray-50 outline-none" 
-                                    value={gigForm.category} 
-                                    onChange={e => setGigForm(f => ({ ...f, category: e.target.value }))}
-                                >
-                                    {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-                                </select>
-                            </div>
-
-                            <div>
-                                <label className="block text-xs font-bold text-unihub-textMuted uppercase tracking-wider mb-2">Delivery Time</label>
-                                <div className="relative">
-                                    <Calendar className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-                                    <input 
-                                        type="text" 
-                                        className="w-full border border-unihub-border rounded-xl py-4 pl-12 pr-4 text-sm font-bold bg-gray-50" 
-                                        value={gigForm.deliveryTime} 
-                                        onChange={e => setGigForm(f => ({ ...f, deliveryTime: e.target.value }))} 
-                                        placeholder="e.g. 2 days" 
-                                    />
-                                </div>
-                            </div>
-
-                            <div>
-                                <label className="block text-xs font-bold text-unihub-textMuted uppercase tracking-wider mb-2">Service Fee (LKR - 0 for free)</label>
-                                <div className="relative">
-                                    <DollarSign className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-                                    <input 
-                                        type="number" 
-                                        className="w-full border border-unihub-border rounded-xl py-4 pl-12 pr-4 text-sm font-bold bg-gray-50" 
-                                        value={gigForm.price} 
-                                        onChange={e => setGigForm(f => ({ ...f, price: +e.target.value }))} 
-                                    />
-                                </div>
-                            </div>
+                            <button
+                                onClick={() => setGigModal(null)}
+                                className="w-9 h-9 rounded-xl bg-red-100 hover:bg-red-500 text-red-400 hover:text-white transition-all flex items-center justify-center active:scale-90 flex-shrink-0"
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
                         </div>
 
-                        <div className="flex gap-4 pt-8">
-                            <button onClick={() => setGigModal(null)} className="flex-1 font-bold py-4 text-unihub-textMuted">CANCEL</button>
-                            <button onClick={handleSaveGig} className="flex-1 bg-unihub-teal text-white font-black py-4 rounded-2xl shadow-lg hover:bg-unihub-tealHover transition-all">
-                                {gigModal.mode === 'create' ? 'PUBLISH GIG' : 'UPDATE GIG'}
+                        {/* Form Body */}
+                        <div className="space-y-4">
+
+                            {/* Gig Title */}
+                            <div>
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Gig Title</label>
+                                <div className="relative">
+                                    <Zap className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-unihub-teal" />
+                                    <input
+                                        type="text"
+                                        className="w-full bg-slate-50 border-0 rounded-xl py-2.5 pl-10 pr-4 text-sm font-semibold text-slate-700 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-unihub-teal/30 transition-all"
+                                        value={gigForm.title}
+                                        onChange={e => setGigForm(f => ({ ...f, title: e.target.value }))}
+                                        placeholder="e.g. I will design your logo"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Category + Delivery Time */}
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Category</label>
+                                    <select
+                                        className="w-full bg-slate-50 border-0 rounded-xl py-2.5 px-3 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-unihub-teal/30 transition-all appearance-none cursor-pointer"
+                                        value={gigForm.category}
+                                        onChange={e => setGigForm(f => ({ ...f, category: e.target.value }))}
+                                    >
+                                        {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Delivery Time</label>
+                                    <div className="relative">
+                                        <Calendar className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-unihub-teal" />
+                                        <input
+                                            type="text"
+                                            className="w-full bg-slate-50 border-0 rounded-xl py-2.5 pl-10 pr-3 text-sm font-semibold text-slate-700 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-unihub-teal/30 transition-all"
+                                            value={gigForm.deliveryTime}
+                                            onChange={e => setGigForm(f => ({ ...f, deliveryTime: e.target.value }))}
+                                            placeholder="e.g. 2 days"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Service Fee */}
+                            <div>
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Service Fee</label>
+                                <div className="relative">
+                                    <DollarSign className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-unihub-teal" />
+                                    <input
+                                        type="number"
+                                        className="w-full bg-slate-50 border-0 rounded-xl py-2.5 pl-10 pr-4 text-sm font-black text-slate-700 focus:outline-none focus:ring-2 focus:ring-unihub-teal/30 transition-all"
+                                        value={gigForm.price}
+                                        onChange={e => setGigForm(f => ({ ...f, price: +e.target.value }))}
+                                        placeholder="0 = Free"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Description */}
+                            <div>
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Description</label>
+                                <textarea
+                                    rows={3}
+                                    className="w-full bg-slate-50 border-0 rounded-xl py-2.5 px-4 text-sm text-slate-700 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-unihub-teal/30 transition-all resize-none leading-relaxed"
+                                    value={gigForm.description}
+                                    onChange={e => setGigForm(f => ({ ...f, description: e.target.value }))}
+                                    placeholder="What will you deliver? Be specific..."
+                                />
+                            </div>
+
+                            {/* Submit Button */}
+                            <button
+                                onClick={handleSaveGig}
+                                className="w-full bg-unihub-teal hover:bg-unihub-tealHover text-white font-black py-3 rounded-xl flex items-center justify-center gap-2 text-sm transition-all active:scale-[0.98] shadow-md mt-1"
+                            >
+                                <CheckCircle className="w-4 h-4" />
+                                {gigModal.mode === 'create' ? 'Publish Gig' : 'Save Changes'}
                             </button>
                         </div>
                     </div>
@@ -764,25 +926,25 @@ const SkillMarketplace = () => {
 
             {/* Review Modal */}
             {reviewModal && (
-                <div className="fixed inset-0 bg-unihub-text/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-[40px] shadow-2xl p-10 max-w-lg w-full">
+                <div className="uni-modal-overlay">
+                    <div className="uni-modal p-10">
                         <div className="text-center space-y-4 mb-8">
-                            <div className="w-20 h-20 bg-unihub-teal/5 text-unihub-teal rounded-full flex items-center justify-center mx-auto ring-8 ring-unihub-teal/10">
+                            <div className="w-16 h-16 bg-unihub-teal/10 text-unihub-teal rounded-[20px] flex items-center justify-center mx-auto shadow-inner">
                                 <Award className="w-8 h-8" />
                             </div>
-                            <h3 className="text-2xl font-black text-unihub-text">Contact {reviewModal.targetName}</h3>
+                            <h3 className="text-2xl font-black text-unihub-text font-display tracking-tight">Contact {reviewModal.targetName}</h3>
                         </div>
                         
-                        <div className="space-y-6">
+                        <div className="space-y-5">
                             <textarea 
                                 rows={4} 
-                                className="w-full border border-unihub-border rounded-2xl py-4 px-5 text-sm bg-gray-50 focus:bg-white outline-none font-medium" 
+                                className="uni-input text-sm" 
                                 placeholder="Describe what you need..." 
                                 value={reviewForm.comment}
                                 onChange={e => setReviewForm(f => ({ ...f, comment: e.target.value }))}
                             />
-                            <div className="flex gap-4">
-                                <button onClick={() => setReviewModal(null)} className="flex-1 font-bold py-4 rounded-2xl hover:bg-gray-100">Cancel</button>
+                            <div className="flex gap-3">
+                                <button onClick={() => setReviewModal(null)} className="btn btn-glass flex-1 border border-black/10">Cancel</button>
                                 <button 
                                     onClick={async () => { 
                                         try {
@@ -801,7 +963,7 @@ const SkillMarketplace = () => {
                                             setMessage({ type: 'error', text: err.response?.data?.message || 'Failed to send message.' });
                                         }
                                     }} 
-                                    className="flex-1 bg-unihub-teal text-white font-black py-4 rounded-2xl shadow-lg"
+                                    className="btn btn-primary flex-1"
                                 >
                                     Send Message
                                 </button>
@@ -812,33 +974,33 @@ const SkillMarketplace = () => {
             )}
             {/* Deliver Work Modal */}
             {deliverModal && (
-                <div className="fixed inset-0 bg-unihub-text/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-[40px] shadow-2xl p-10 max-w-lg w-full">
-                        <div className="text-center space-y-4 mb-8">
-                            <div className="w-20 h-20 bg-unihub-teal/5 text-unihub-teal rounded-full flex items-center justify-center mx-auto ring-8 ring-unihub-teal/10">
+                <div className="uni-modal-overlay">
+                    <div className="uni-modal p-10">
+                        <div className="text-center space-y-3 mb-8">
+                            <div className="w-16 h-16 bg-unihub-teal/10 text-unihub-teal rounded-[20px] flex items-center justify-center mx-auto shadow-inner">
                                 <Globe className="w-8 h-8" />
                             </div>
-                            <h3 className="text-2xl font-black text-unihub-text">Deliver Your Work</h3>
-                            <p className="text-xs text-unihub-textMuted">Send the completed files or access link to {deliverModal.buyerId?.name}</p>
+                            <h3 className="text-2xl font-black text-unihub-text font-display tracking-tight">Deliver Your Work</h3>
+                            <p className="text-sm text-unihub-textMuted font-medium">Send the completed files or access link to {deliverModal.buyerId?.name}</p>
                         </div>
                         
-                        <div className="space-y-6">
+                        <div className="space-y-5">
                             <textarea 
                                 rows={6} 
-                                className="w-full border border-unihub-border rounded-2xl py-4 px-5 text-sm bg-gray-50 focus:bg-white outline-none font-medium" 
+                                className="uni-input text-sm" 
                                 placeholder="Write your delivery message or paste work links here..." 
                                 value={deliveryWork}
                                 onChange={e => setDeliveryWork(e.target.value)}
                             />
-                            <div className="flex gap-4">
-                                <button onClick={() => setDeliverModal(null)} className="flex-1 font-bold py-4 rounded-2xl hover:bg-gray-100">Cancel</button>
+                            <div className="flex gap-3">
+                                <button onClick={() => setDeliverModal(null)} className="btn btn-glass flex-1 border border-black/10">Cancel</button>
                                 <button 
                                     onClick={async () => {
                                         await updateOrderStatus(deliverModal._id, 'delivered', deliveryWork);
                                         setDeliverModal(null);
-                                        setViewOrderModal(null); // Close order modal too
+                                        setViewOrderModal(null);
                                     }} 
-                                    className="flex-1 bg-unihub-teal text-white font-black py-4 rounded-2xl shadow-lg"
+                                    className="btn btn-primary flex-1"
                                 >
                                     Finish & Send
                                 </button>
@@ -850,14 +1012,14 @@ const SkillMarketplace = () => {
 
             {/* View Order Details Modal */}
             {viewOrderModal && (
-                <div className="fixed inset-0 bg-unihub-text/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-[40px] shadow-2xl p-10 max-w-lg w-full max-h-[90vh] overflow-y-auto">
+                <div className="uni-modal-overlay">
+                    <div className="uni-modal p-10 max-h-[90vh] overflow-y-auto">
                         <div className="flex justify-between items-start mb-6">
                             <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-white font-black text-xl ${viewOrderModal.sellerId?._id === user?._id ? 'bg-unihub-coral' : 'bg-unihub-teal'}`}>
                                 {viewOrderModal.sellerId?._id === user?._id ? viewOrderModal.buyerId?.name?.[0] : viewOrderModal.sellerId?.name?.[0]}
                             </div>
-                            <button onClick={() => setViewOrderModal(null)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
-                                <X className="w-6 h-6 text-unihub-textMuted" />
+                            <button onClick={() => setViewOrderModal(null)} className="w-9 h-9 rounded-xl bg-black/5 hover:bg-black/10 flex items-center justify-center transition-all active:scale-90">
+                                <X className="w-5 h-5 text-unihub-textMuted" />
                             </button>
                         </div>
 
@@ -888,8 +1050,8 @@ const SkillMarketplace = () => {
                                 </div>
                             </div>
 
-                            <div className="bg-gray-50 rounded-2xl p-5 border border-gray-100">
-                                <p className="text-[10px] font-black text-unihub-textMuted uppercase mb-2">Message from Buyer</p>
+                            <div className="glass rounded-2xl p-5 border border-white/60">
+                                <p className="uni-label mb-2">Message from Buyer</p>
                                 <p className="text-sm text-unihub-text leading-relaxed italic">"{viewOrderModal.message}"</p>
                             </div>
 
@@ -907,13 +1069,13 @@ const SkillMarketplace = () => {
                                             <>
                                                 <button 
                                                     onClick={() => { updateOrderStatus(viewOrderModal._id, 'accepted'); setViewOrderModal(null); }}
-                                                    className="flex-1 bg-unihub-teal text-white font-black py-4 rounded-2xl shadow-lg hover:bg-unihub-tealHover transition-all"
+                                                    className="btn btn-primary flex-1"
                                                 >
                                                     Accept Order
                                                 </button>
                                                 <button 
                                                     onClick={() => { updateOrderStatus(viewOrderModal._id, 'cancelled'); setViewOrderModal(null); }}
-                                                    className="flex-1 bg-white border border-unihub-coral text-unihub-coral font-black py-4 rounded-2xl hover:bg-unihub-coral/5 transition-all"
+                                                    className="btn btn-secondary flex-1"
                                                 >
                                                     Decline
                                                 </button>
@@ -921,8 +1083,11 @@ const SkillMarketplace = () => {
                                         )}
                                         {viewOrderModal.status === 'accepted' && (
                                             <button 
-                                                onClick={() => setDeliverModal(viewOrderModal)}
-                                                className="flex-1 bg-unihub-teal text-white font-black py-4 rounded-2xl shadow-lg hover:bg-unihub-tealHover transition-all"
+                                                onClick={() => {
+                                                    setDeliverModal(viewOrderModal);
+                                                    setViewOrderModal(null);
+                                                }}
+                                                className="btn btn-primary flex-1"
                                             >
                                                 Deliver Work
                                             </button>
@@ -933,14 +1098,14 @@ const SkillMarketplace = () => {
                                         {viewOrderModal.status === 'delivered' && (
                                             <button 
                                                 onClick={() => { updateOrderStatus(viewOrderModal._id, 'completed'); setViewOrderModal(null); }}
-                                                className="flex-1 bg-unihub-teal text-white font-black py-4 rounded-2xl shadow-lg hover:bg-unihub-tealHover transition-all"
+                                                className="btn btn-primary flex-1"
                                             >
                                                 Accept Work & Complete
                                             </button>
                                         )}
                                     </>
                                 )}
-                                <button onClick={() => setViewOrderModal(null)} className="px-6 font-bold py-4 rounded-2xl hover:bg-gray-100">Close</button>
+                                <button onClick={() => setViewOrderModal(null)} className="btn btn-glass border border-black/10">Close</button>
                             </div>
                         </div>
                     </div>

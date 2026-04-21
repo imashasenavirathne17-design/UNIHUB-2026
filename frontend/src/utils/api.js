@@ -34,6 +34,13 @@ export const eventService = {
     getEventRegistrants: (id) => api.get(`/events/${id}/registrations`),
     toggleAttendance: (id, userId, attended) => api.put(`/events/${id}/registrations/${userId}/attendance`, { attended }),
     updateEventOverrides: (id, overrides) => api.put(`/events/${id}/manual-override`, overrides),
+    broadcastMessage: (id, payload) => api.post(`/events/${id}/broadcast`, payload),
+};
+
+export const eventRequestService = {
+    createRequest: (data) => api.post('/event-requests', data),
+    getRequests: () => api.get('/event-requests'),
+    updateRequestStatus: (id, status) => api.put(`/event-requests/${id}/status`, { status }),
 };
 
 export const notificationService = {
@@ -45,6 +52,7 @@ export const notificationService = {
 
 export const analyticsService = {
     getGlobalEventAnalytics: () => api.get('/analytics/events/global'),
+    getOrganizerAnalytics: () => api.get('/analytics/events/organizer'),
     getEventAnalytics: (id) => api.get(`/analytics/events/${id}`),
     getRiskDetection: () => api.get('/analytics/risk-detection'),
     getAuditLogs: () => api.get('/analytics/audit-logs'),

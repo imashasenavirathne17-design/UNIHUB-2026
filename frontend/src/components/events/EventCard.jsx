@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { 
     Calendar, 
     Clock, 
@@ -14,7 +14,8 @@ import {
 } from 'lucide-react';
 import './Events.css';
 
-const EventCard = ({ event, isRegistered, onRegister, onUnregister, role, animationDelay = 0 }) => {
+const EventCard = ({ event, isRegistered, onRegister, onUnregister, onShowDetails, role, animationDelay = 0 }) => {
+    const navigate = useNavigate();
     const isDeadlinePassed = new Date() > new Date(event.registrationDeadline);
     const isFull = event.registeredCount >= event.capacity;
     const isUpcoming = event.status === 'Upcoming';
@@ -103,25 +104,25 @@ const EventCard = ({ event, isRegistered, onRegister, onUnregister, role, animat
                     </div>
 
                     <div className="grid grid-cols-2 gap-3 pt-6 border-t border-black/5 items-center">
-                        <Link
-                            to={`/events/${event._id}`}
-                            className="btn btn-glass py-3.5 text-[11px] font-black uppercase tracking-[0.2em] shadow-sm hover:shadow-md active:scale-95 flex items-center justify-center gap-2"
+                        <button
+                            onClick={() => onShowDetails(event)}
+                            className="btn btn-glass py-3.5 text-[11px] font-black uppercase tracking-[0.2em] shadow-sm hover:shadow-md active:scale-95 flex items-center justify-center gap-2 cursor-pointer relative z-50"
                         >
                             <Info className="w-3.5 h-3.5" /> DETAILS
-                        </Link>
+                        </button>
                         {role === 'student' && (
                             isRegistered ? (
                                 <button
-                                    onClick={() => onUnregister(event._id)}
-                                    className="btn btn-secondary py-3.5 text-[11px] font-black uppercase tracking-[0.2em] shadow-lg active:scale-95 flex items-center justify-center gap-2"
+                                    onClick={() => onUnregister(event._id || event.id)}
+                                    className="btn btn-secondary py-3.5 text-[11px] font-black uppercase tracking-[0.2em] shadow-lg active:scale-95 flex items-center justify-center gap-2 relative z-50"
                                 >
                                     <UserMinus className="w-3.5 h-3.5" /> CANCEL
                                 </button>
                             ) : (
                                 <button
-                                    onClick={() => onRegister(event._id)}
+                                    onClick={() => onRegister(event._id || event.id)}
                                     disabled={isDeadlinePassed || isFull}
-                                    className="btn btn-primary py-3.5 text-[11px] font-black uppercase tracking-[0.2em] shadow-xl active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
+                                    className="btn btn-primary py-3.5 text-[11px] font-black uppercase tracking-[0.2em] shadow-xl active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2 relative z-50"
                                 >
                                     {isDeadlinePassed ? (
                                         'CLOSED'
@@ -135,13 +136,13 @@ const EventCard = ({ event, isRegistered, onRegister, onUnregister, role, animat
                                 </button>
                             )
                         )}
-                        {(role === 'admin' || role === 'organizer') && (
-                            <Link
-                                to={`/events/manage`}
-                                className="btn btn-primary py-3.5 text-[11px] font-black uppercase tracking-[0.2em] shadow-xl active:scale-95 flex items-center justify-center gap-2"
+                        {(role === 'admin' || role === 'organizer' || role === 'event organizer') && (
+                            <button
+                                onClick={() => navigate(`/events/manage`)}
+                                className="btn btn-primary py-3.5 text-[11px] font-black uppercase tracking-[0.2em] shadow-xl active:scale-95 flex items-center justify-center gap-2 cursor-pointer relative z-50"
                             >
                                 <Settings className="w-3.5 h-3.5" /> MANAGE
-                            </Link>
+                            </button>
                         )}
                     </div>
                 </div>
