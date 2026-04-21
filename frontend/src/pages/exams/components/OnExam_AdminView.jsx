@@ -20,7 +20,7 @@ const AdminView = () => {
                     <h2 className="text-2xl font-black text-gray-800">Lecturer Control Panel</h2>
                     <p className="text-sm font-medium text-gray-500">Manage exams, questions, and view student performance analytics.</p>
                 </div>
-                <button className="flex items-center gap-2 bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold shadow-md hover:bg-indigo-700 transition-colors">
+                <button className="flex items-center gap-2 bg-unihub-teal text-white px-6 py-3 rounded-xl font-bold shadow-md hover:bg-[#0d857a] transition-colors">
                     <PlusCircle className="w-5 h-5"/> Create New Exam
                 </button>
             </div>
@@ -29,8 +29,8 @@ const AdminView = () => {
                 {/* Global Student Analytics */}
                 <div className="bg-white/80 backdrop-blur-md rounded-3xl p-6 shadow-soft border border-gray-100 flex flex-col">
                     <div className="flex items-center justify-between mb-6 pb-2 border-b border-gray-100">
-                        <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2"><Users className="w-5 h-5 text-indigo-500"/> Student Overview</h3>
-                        <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full cursor-pointer hover:bg-indigo-100">View All</span>
+                        <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2"><Users className="w-5 h-5 text-unihub-teal"/> Student Overview</h3>
+                        <span className="text-xs font-bold text-unihub-teal bg-unihub-teal/10 px-3 py-1 rounded-full cursor-pointer hover:bg-unihub-teal/20">View All</span>
                     </div>
 
                     <div className="overflow-x-auto flex-1">
@@ -51,9 +51,9 @@ const AdminView = () => {
                                         <td className="py-3 px-4 text-gray-800 font-bold text-sm">{s.avgScore}%</td>
                                         <td className="py-3 px-4">
                                             <span className={`px-3 py-1 rounded-lg text-xs font-bold ${
-                                                s.status === 'Top Performer' ? 'bg-green-100 text-green-700' :
-                                                s.status === 'Needs Review' ? 'bg-red-100 text-red-700' :
-                                                'bg-indigo-100 text-indigo-700'
+                                                s.status === 'Top Performer' ? 'bg-unihub-teal/10 text-unihub-teal' :
+                                                s.status === 'Needs Review' ? 'bg-unihub-coral/10 text-unihub-coral' :
+                                                'bg-unihub-yellow/10 text-unihub-yellow'
                                             }`}>
                                                 {s.status}
                                             </span>
@@ -68,30 +68,30 @@ const AdminView = () => {
                 {/* Manage Active Exams */}
                 <div className="bg-white/80 backdrop-blur-md rounded-3xl p-6 shadow-soft border border-gray-100 flex flex-col">
                     <div className="flex items-center justify-between mb-6 pb-2 border-b border-gray-100">
-                        <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2"><FileDiff className="w-5 h-5 text-indigo-500"/> Active Exams</h3>
+                        <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2"><FileDiff className="w-5 h-5 text-unihub-teal"/> Active Exams</h3>
                     </div>
 
                     <div className="space-y-4">
                         {mockManageExams.map(exam => (
-                            <div key={exam.id} className="flex items-center justify-between p-4 rounded-2xl bg-gray-50 border border-gray-100 hover:border-indigo-200 transition-all group">
+                            <div key={exam.id} className="flex items-center justify-between p-4 rounded-2xl bg-gray-50 border border-gray-100 hover:border-unihub-teal/30 transition-all group">
                                 <div>
                                     <h4 className="font-bold text-gray-800 mb-1">{exam.title}</h4>
                                     <div className="flex items-center gap-3 text-xs font-medium text-gray-500">
-                                        <span className={`px-2 py-0.5 rounded text-white ${exam.active ? 'bg-green-500' : 'bg-gray-400'}`}>
+                                        <span className={`px-2 py-0.5 rounded text-white ${exam.active ? 'bg-unihub-teal' : 'bg-gray-400'}`}>
                                             {exam.active ? 'Active' : 'Draft'}
                                         </span>
                                         <span>• {exam.enrollments} Enrolled</span>
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <button className="p-2 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors"><Edit className="w-4 h-4"/></button>
-                                    <button className="p-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors"><Trash2 className="w-4 h-4"/></button>
+                                    <button className="p-2 rounded-lg bg-unihub-teal/10 text-unihub-teal hover:bg-unihub-teal/20 transition-colors"><Edit className="w-4 h-4"/></button>
+                                    <button className="p-2 rounded-lg bg-unihub-coral/10 text-unihub-coral hover:bg-unihub-coral/20 transition-colors"><Trash2 className="w-4 h-4"/></button>
                                 </div>
                             </div>
                         ))}
                     </div>
                     
-                    <button className="w-full mt-auto mt-6 border-2 border-dashed border-gray-300 rounded-2xl p-4 text-center font-bold text-gray-500 hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all flex items-center justify-center gap-2">
+                    <button className="w-full mt-auto mt-6 border-2 border-dashed border-gray-300 rounded-2xl p-4 text-center font-bold text-gray-500 hover:border-unihub-teal/40 hover:text-unihub-teal hover:bg-unihub-teal/5 transition-all flex items-center justify-center gap-2">
                         <PlusCircle className="w-5 h-5"/> Quick Draft
                     </button>
                 </div>

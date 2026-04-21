@@ -1,11 +1,43 @@
-import { useContext, useState } from 'react';
+import { useContext, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import {
     Search, Bell, ChevronDown, LogOut,
-    User as UserIcon, Menu, Settings
+    User as UserIcon, Menu, Settings, MessageSquare
 } from 'lucide-react';
+import axios from 'axios';
 import { NotificationBadge, NotificationPanel } from './notifications/NotificationCenter';
+
+const MessageBadge = () => {
+    const [unreadCount, setUnreadCount] = useState(0);
+
+    useEffect(() => {
+        const fetchUnread = async () => {
+            try {
+                const token = JSON.parse(localStorage.getItem('user'))?.token;
+                if (!token) return;
+                const res = await axios.get('http://localhost:5000/api/lostfound/messages/unread/count', {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                setUnreadCount(res.data.count);
+            } catch (err) {}
+        };
+        fetchUnread();
+        
+        // Polling as a fallback for pure global events (could be swapped with global socket context)
+        const interval = setInterval(fetchUnread, 15000);
+        return () => clearInterval(interval);
+    }, []);
+
+    return (
+        <button className="relative p-2 rounded-xl text-unihub-textMuted hover:bg-white/40 hover:text-unihub-teal transition-all duration-200">
+            <MessageSquare className="w-5 h-5" />
+            {unreadCount > 0 && (
+                <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-unihub-coral shadow-[0_0_8px_rgba(239,68,68,0.5)] animate-pulse" />
+            )}
+        </button>
+    );
+};
 
 const Navbar = ({ onToggleSidebar }) => {
     const { user, logout } = useContext(AuthContext);
@@ -39,12 +71,13 @@ const Navbar = ({ onToggleSidebar }) => {
 
             {/* Mobile Logo */}
             <div className="md:hidden flex items-center gap-2.5 font-bold text-unihub-text text-base font-display">
-                <div className="w-8 h-8 rounded-xl bg-unihub-teal flex items-center justify-center text-white text-sm font-bold shadow-teal-sm">U</div>
+                <img src="/logo.png" alt="UniHub Logo" className="w-8 h-8 rounded-xl shadow-teal-sm object-cover" />
                 Uni<span className="text-unihub-teal">Hub</span>
             </div>
 
             {/* Right Actions */}
             <div className="flex items-center gap-4 relative">
+                <MessageBadge />
                 <NotificationBadge onClick={() => setShowNotifications(!showNotifications)} />
                 <NotificationPanel isOpen={showNotifications} onClose={() => setShowNotifications(false)} />
 

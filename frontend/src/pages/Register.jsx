@@ -19,8 +19,9 @@ const Register = () => {
         try {
             setError('');
             setLoading(true);
-            await register({ name, email, password, role });
-            navigate('/dashboard');
+            const userData = await register({ name, email, password, role });
+            if (userData.role === 'admin') navigate('/admin/dashboard');
+            else navigate('/dashboard');
         } catch (err) {
             setError(err.response?.data?.message || 'Failed to register account.');
         } finally {
@@ -39,15 +40,17 @@ const Register = () => {
             <div className="w-full max-w-lg animate-in fade-in slide-in-from-bottom-4 duration-700">
                 {/* Logo */}
                 <div className="text-center mb-10">
-                    <div className="inline-flex items-center gap-3 mb-4 group cursor-default">
-                        <div className="w-11 h-11 rounded-2xl bg-unihub-teal flex items-center justify-center text-white font-bold text-xl shadow-lg group-hover:scale-110 transition-transform">U</div>
-                        <span className="text-3xl font-black text-unihub-text tracking-tighter font-display">Uni<span className="text-gradient">Hub</span></span>
+                    <div className="inline-flex items-center gap-4 mb-6 group cursor-default">
+                        <img src="/logo.png" alt="UniHub Logo" className="w-14 h-14 rounded-3xl shadow-xl group-hover:scale-110 group-hover:rotate-3 transition-all duration-500 object-cover" />
+                        <span className="text-4xl font-black text-unihub-text tracking-tighter font-display uppercase">Uni<span className="text-unihub-teal">Hub</span></span>
                     </div>
-                    <h1 className="text-2xl font-black text-unihub-text font-display tracking-tight uppercase">Join the Ecosystem</h1>
-                    <p className="text-sm font-medium text-unihub-textMuted mt-2 tracking-wide italic">Begin your professional academic journey today</p>
+                    <h1 className="text-3xl font-black text-unihub-text font-display tracking-tight uppercase">Join the Ecosystem</h1>
+                    <p className="text-xs font-bold text-unihub-textMuted mt-3 tracking-[0.2em] uppercase opacity-70">Initialize Academic Identity • Node 2026</p>
                 </div>
 
-                <div className="glass rounded-[32px] p-10 border border-white/40 shadow-[0_20px_50px_rgba(0,0,0,0.1)]">
+                <div className="glass-card p-10 border-white/40 shadow-2xl relative overflow-hidden group/card max-w-2xl mx-auto">
+                    {/* Subtle Internal Glow */}
+                    <div className="absolute -top-24 -left-24 w-48 h-48 bg-unihub-teal/5 rounded-full blur-3xl group-hover/card:bg-unihub-teal/10 transition-colors" />
                     {error && (
                         <div className="bg-unihub-coral/10 border border-unihub-coral/20 text-unihub-coral px-4 py-3.5 rounded-2xl text-sm font-medium flex items-start gap-3 mb-6 animate-in slide-in-from-top-2 duration-300">
                             <div className="w-5 h-5 rounded-full bg-unihub-coral/20 flex items-center justify-center flex-shrink-0 text-xs font-black italic">!</div>
@@ -62,7 +65,7 @@ const Register = () => {
                                 <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-unihub-textMuted group-focus-within/input:text-unihub-teal transition-colors pointer-events-none" />
                                 <input
                                     type="text"
-                                    className="uni-input pl-12 bg-white/40 border-white/20 focus:bg-white/80"
+                                    className="uni-input !pl-12 bg-white/40 border-white/20 focus:bg-white/80"
                                     value={name}
                                     onChange={(e) => setName(e.target.value)}
                                     placeholder="Enter your full name"
@@ -77,7 +80,7 @@ const Register = () => {
                                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-unihub-textMuted group-focus-within/input:text-unihub-teal transition-colors pointer-events-none" />
                                 <input
                                     type="email"
-                                    className="uni-input pl-12 bg-white/40 border-white/20 focus:bg-white/80"
+                                    className="uni-input !pl-12 bg-white/40 border-white/20 focus:bg-white/80"
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
                                     placeholder="university@example.edu"
@@ -92,7 +95,7 @@ const Register = () => {
                                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-unihub-textMuted group-focus-within/input:text-unihub-teal transition-colors pointer-events-none" />
                                 <input
                                     type="password"
-                                    className="uni-input pl-12 bg-white/40 border-white/20 focus:bg-white/80"
+                                    className="uni-input !pl-12 bg-white/40 border-white/20 focus:bg-white/80"
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
                                     placeholder="Min 6 chars"
@@ -107,13 +110,15 @@ const Register = () => {
                             <div className="relative group/input">
                                 <Shield className="absolute left-4 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-unihub-textMuted group-focus-within/input:text-unihub-teal transition-colors pointer-events-none" />
                                 <select
-                                    className="uni-input pl-12 bg-white/40 border-white/20 focus:bg-white/80 appearance-none cursor-pointer"
+                                    className="uni-input !pl-12 bg-white/40 border-white/20 focus:bg-white/80 appearance-none cursor-pointer"
                                     value={role}
                                     onChange={(e) => setRole(e.target.value)}
                                 >
                                     <option value="student">Student</option>
                                     <option value="lecturer">Lecturer</option>
+                                    <option value="admin">Administrator</option>
                                     <option value="organization">Organization</option>
+                                    <option value="organizer">Event Organizer</option>
                                 </select>
                             </div>
                         </div>
@@ -132,11 +137,11 @@ const Register = () => {
                         </button>
                     </form>
 
-                    <div className="text-center mt-8 pt-8 border-t border-black/5">
-                        <p className="text-sm font-medium text-unihub-textMuted">
-                            Already part of UniHub?{' '}
-                            <Link to="/login" className="text-unihub-teal font-black hover:text-unihub-tealHover transition-all underline underline-offset-4 decoration-2 decoration-unihub-teal/20 hover:decoration-unihub-teal">
-                                Sign In
+                    <div className="text-center mt-10 pt-8 border-t border-black/5 col-span-1 md:col-span-2">
+                        <p className="text-xs font-bold text-unihub-textMuted uppercase tracking-widest leading-loose">
+                            Already part of UniHub?<br />
+                            <Link to="/login" className="text-unihub-teal font-black hover:text-unihub-tealHover transition-all underline underline-offset-8 decoration-2 decoration-unihub-teal/20 hover:decoration-unihub-teal">
+                                SIGN IN TO PORTAL
                             </Link>
                         </p>
                     </div>

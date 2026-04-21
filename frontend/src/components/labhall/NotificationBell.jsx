@@ -70,6 +70,8 @@ const NotificationBell = () => {
         catch { return []; }
     });
     const panelRef = useRef(null);
+    const bellRef = useRef(null);
+    const [panelPos, setPanelPos] = useState({ top: 0, right: 0 });
     const headers = { Authorization: `Bearer ${user.token}` };
 
     useEffect(() => {
@@ -93,10 +95,26 @@ const NotificationBell = () => {
 
     // Close on outside click
     useEffect(() => {
-        const handler = (e) => { if (panelRef.current && !panelRef.current.contains(e.target)) setOpen(false); };
+        const handler = (e) => {
+            if (
+                panelRef.current && !panelRef.current.contains(e.target) &&
+                bellRef.current && !bellRef.current.contains(e.target)
+            ) setOpen(false);
+        };
         document.addEventListener('mousedown', handler);
         return () => document.removeEventListener('mousedown', handler);
     }, []);
+
+    const handleBellClick = () => {
+        if (bellRef.current) {
+            const rect = bellRef.current.getBoundingClientRect();
+            setPanelPos({
+                top: rect.bottom + 8,
+                right: window.innerWidth - rect.right,
+            });
+        }
+        setOpen(o => !o);
+    };
 
     const dismiss = (id) => {
         const updated = [...dismissed, id];
@@ -104,13 +122,26 @@ const NotificationBell = () => {
         localStorage.setItem('labhall_dismissed_notifs', JSON.stringify(updated));
     };
 
+    const dismissAll = () => {
+        const allIds = notifications.map(n => n.id);
+        setDismissed(allIds);
+        localStorage.setItem('labhall_dismissed_notifs', JSON.stringify(allIds));
+    };
+
+    const formatTime = (date) => {
+        const d = new Date(date);
+        if (isNaN(d)) return '';
+        return d.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    };
+
     const visible = notifications.filter(n => !dismissed.includes(n.id));
     const unread = visible.length;
 
     return (
-        <div className="relative" ref={panelRef}>
+        <div className="relative">
             <button
-                onClick={() => setOpen(o => !o)}
+                ref={bellRef}
+                onClick={handleBellClick}
                 className="relative w-10 h-10 rounded-2xl bg-white border border-gray-100 shadow-sm flex items-center justify-center hover:border-indigo-300 transition-all"
             >
                 <Bell className="w-5 h-5 text-gray-600" />
@@ -122,18 +153,32 @@ const NotificationBell = () => {
             </button>
 
             {open && (
-                <div className="absolute right-0 top-14 w-80 bg-white rounded-3xl shadow-2xl border border-gray-100 z-50 overflow-hidden">
-                    <div className="p-4 border-b border-gray-100 flex items-center justify-between">
-                        <h3 className="font-black text-gray-800">Notifications</h3>
-                        {dismissed.length > 0 && (
-                            <button onClick={() => { setDismissed([]); localStorage.removeItem('labhall_dismissed_notifs'); }}
-                                className="text-[10px] font-black text-indigo-500 hover:underline uppercase tracking-wide">
-                                Clear All
-                            </button>
-                        )}
+                <div
+                    ref={panelRef}
+                    style={{ position: 'fixed', top: panelPos.top, right: panelPos.right, zIndex: 99999 }}
+                    className="w-80 bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden"
+                >
+                    {/* Header */}
+                    <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-white sticky top-0">
+                        <h3 className="font-black text-gray-800 text-sm">Notifications</h3>
+                        <div className="flex items-center gap-2">
+                            {unread > 0 && (
+                                <button onClick={dismissAll}
+                                    className="text-[10px] font-black text-indigo-500 hover:underline uppercase tracking-wide">
+                                    Mark all read
+                                </button>
+                            )}
+                            {dismissed.length > 0 && unread === 0 && (
+                                <button onClick={() => { setDismissed([]); localStorage.removeItem('labhall_dismissed_notifs'); }}
+                                    className="text-[10px] font-black text-gray-400 hover:underline uppercase tracking-wide">
+                                    Restore
+                                </button>
+                            )}
+                        </div>
                     </div>
 
-                    <div className="max-h-80 overflow-y-auto">
+                    {/* Scrollable body */}
+                    <div style={{ maxHeight: '420px', overflowY: 'auto' }}>
                         {visible.length === 0 ? (
                             <div className="py-10 text-center">
                                 <CheckCircle className="w-8 h-8 text-gray-200 mx-auto mb-2" />
@@ -142,12 +187,13 @@ const NotificationBell = () => {
                         ) : (
                             visible.map(n => (
                                 <div key={n.id} className="flex items-start gap-3 p-4 hover:bg-gray-50 transition-all border-b border-gray-50 last:border-0">
-                                    <div className="w-8 h-8 rounded-xl bg-gray-100 flex items-center justify-center flex-shrink-0">
+                                    <div className="w-8 h-8 rounded-xl bg-gray-100 flex items-center justify-center flex-shrink-0 mt-0.5">
                                         {typeIcon(n.type)}
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <p className="text-xs font-black text-gray-800 leading-snug">{n.title}</p>
-                                        <p className="text-[11px] text-gray-400 font-medium truncate">{n.body}</p>
+                                        <p className="text-[11px] text-gray-500 font-medium mt-0.5">{n.body}</p>
+                                        <p className="text-[10px] text-gray-300 font-medium mt-1">{formatTime(n.time)}</p>
                                     </div>
                                     <button onClick={() => dismiss(n.id)}
                                         className="p-1 rounded-lg hover:bg-gray-100 text-gray-300 hover:text-gray-500 transition-all flex-shrink-0">

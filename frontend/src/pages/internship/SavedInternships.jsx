@@ -15,10 +15,25 @@ import {
     ArrowUpRight,
     Clock
 } from 'lucide-react';
+import InternshipDetailModal from '../../components/internship/InternshipDetailModal';
+
+const DeadlineCountdown = ({ deadline }) => {
+    const now = new Date();
+    const deadlineDate = new Date(deadline);
+    const diffMs = deadlineDate - now;
+    const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffDays < 0) return <span className="text-[10px] text-rose-500 font-black uppercase tracking-widest bg-rose-50 px-2 py-0.5 rounded-md border border-rose-100">Closed</span>;
+    if (diffDays === 0) return <span className="text-[10px] text-rose-500 font-black animate-pulse uppercase tracking-widest bg-rose-50 px-2 py-0.5 rounded-md border border-rose-100">Closes today!</span>;
+    if (diffDays <= 3) return <span className="text-[10px] text-unihub-coral font-black uppercase tracking-widest bg-unihub-coral/5 px-2 py-0.5 rounded-md border border-unihub-coral/10">⚠ {diffDays}d left</span>;
+    if (diffDays <= 10) return <span className="text-[10px] text-unihub-yellow font-black uppercase tracking-widest bg-unihub-yellow/10 px-2 py-0.5 rounded-md border border-unihub-yellow/20">{diffDays}d left</span>;
+    return <span className="text-[10px] text-unihub-textMuted font-bold uppercase tracking-widest bg-black/5 px-2 py-0.5 rounded-md">{diffDays}d left</span>;
+};
 
 const SavedInternships = () => {
     const [internships, setInternships] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [selectedId, setSelectedId] = useState(null);
 
     const token = JSON.parse(localStorage.getItem('user'))?.token;
     const config = { headers: { Authorization: `Bearer ${token}` } };
@@ -49,38 +64,37 @@ const SavedInternships = () => {
 
     return (
         <div className="max-w-7xl mx-auto space-y-10 pb-16">
-            {/* Hero Section */}
-            <div className="relative overflow-hidden py-14 md:py-24 rounded-[40px] shadow-2xl mt-4 glass group">
-                {/* Background Decor */}
-                <div className="absolute inset-0 -z-10 group-hover:scale-110 transition-transform duration-1000">
-                    <div className="absolute top-[-20%] right-[-10%] w-[500px] h-[500px] bg-unihub-teal/20 blur-[100px] rounded-full" />
-                    <div className="absolute bottom-[-20%] left-[-10%] w-[500px] h-[500px] bg-unihub-coral/20 blur-[100px] rounded-full" />
-                    <Heart className="w-96 h-96 absolute -right-20 -top-20 text-unihub-teal/5 animate-pulse rotate-12" strokeWidth={0.5} />
-                    <Bookmark className="w-64 h-64 absolute left-10 bottom-10 text-unihub-coral/5 -rotate-12" strokeWidth={0.5} />
+            {/* Architectural Hero Section */}
+            <div className="relative rounded-[40px] overflow-hidden shadow-2xl bg-gradient-to-br from-unihub-teal to-[#0d857a] group mb-12 mt-4">
+                {/* Dynamic Background Elements */}
+                <div className="absolute inset-0 overflow-hidden pointer-events-none group-hover:scale-105 transition-transform duration-[2000ms]">
+                    <div className="absolute top-[-20%] right-[-10%] w-[700px] h-[700px] bg-white opacity-10 blur-[120px] rounded-full mix-blend-overlay animate-pulse" />
+                    <div className="absolute bottom-[-10%] left-[-10%] w-[500px] h-[500px] bg-white opacity-5 blur-[100px] rounded-full" />
+                    <Bookmark className="absolute -right-16 -top-16 w-80 h-80 text-white opacity-10 rotate-12 transition-all duration-700 group-hover:rotate-[20deg] group-hover:scale-110" strokeWidth={0.5} />
                 </div>
 
-                <div className="px-10 md:px-16 relative z-10 flex flex-col md:flex-row items-center justify-between gap-10">
-                    <div className="max-w-2xl space-y-6 text-center md:text-left">
-                        <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-unihub-teal/10 border border-unihub-teal/20 text-[11px] font-black text-unihub-teal uppercase tracking-[0.2em] shadow-sm font-display">
-                            <Bookmark className="w-4 h-4" /> Personal Portfolio
+                <div className="px-8 md:px-16 py-16 md:py-24 relative z-10 flex flex-col md:flex-row items-center justify-between gap-12">
+                    <div className="max-w-3xl space-y-8 text-center md:text-left">
+                        <div className="inline-flex items-center gap-2.5 px-5 py-2 rounded-full bg-white/10 backdrop-blur-xl border border-white/20 text-[11px] font-bold text-white tracking-[0.2em] shadow-xl font-display mb-2">
+                            <Bookmark className="w-4 h-4 text-unihub-yellow" /> Personal Portfolio
                         </div>
-                        <h1 className="text-4xl md:text-6xl font-black text-unihub-text leading-[1.1] tracking-tighter font-display">
-                            Your <span className="text-gradient">Dream Portfolio</span>, curated by you.
+                        <h1 className="text-5xl md:text-7xl font-black text-white leading-[1.05] tracking-tight font-display">
+                            Your <span className="text-unihub-yellow">Dream Portfolio</span>, Curated By You.
                         </h1>
-                        <p className="text-unihub-textMuted font-medium text-base md:text-lg max-w-xl leading-relaxed italic">
-                            Keep track of the opportunities that excite you most. Build your future, one bookmark at a time.
+                        <p className="text-white/90 font-medium text-base md:text-xl max-w-xl leading-relaxed italic opacity-80">
+                            {"Keep track of the opportunities that excite you most. Build your future, one bookmark at a time.".split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ')}
                         </p>
                         <div className="pt-2">
-                            <Link to="/internships" className="btn btn-primary px-10 py-4 rounded-[20px] font-black text-[12px] tracking-[0.2em] shadow-xl hover:shadow-unihub-teal/30 active:scale-95 group/btn font-display uppercase">
+                            <Link to="/internships" className="btn bg-white text-unihub-teal hover:bg-unihub-yellow hover:text-unihub-text px-12 py-5 rounded-[24px] font-black text-[13px] tracking-[0.2em] shadow-2xl transition-all active:scale-95 group/btn font-display flex items-center gap-4">
                                 Discover More Roles
-                                <ChevronRight className="w-4.5 h-4.5 group-hover:rotate-45 transition-transform" />
+                                <ChevronRight className="w-5 h-5 group-hover:rotate-45 transition-transform" />
                             </Link>
                         </div>
                     </div>
 
-                    <div className="hidden lg:flex w-64 h-64 bg-white/40 backdrop-blur-3xl rounded-[40px] border border-white/60 shadow-2xl items-center justify-center relative animate-float">
-                        <div className="w-full h-full absolute inset-0 bg-gradient-to-br from-unihub-teal/20 to-transparent rounded-[40px] opacity-50" />
-                        <Bookmark className="w-24 h-24 text-unihub-teal drop-shadow-2xl" strokeWidth={1.5} />
+                    <div className="hidden lg:flex w-64 h-64 bg-white/10 backdrop-blur-3xl rounded-[40px] border border-white/20 shadow-2xl items-center justify-center relative animate-float">
+                        <Bookmark className="w-24 h-24 text-white drop-shadow-[0_0_20px_rgba(255,255,255,0.3)]" strokeWidth={1.5} />
+                        <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent rounded-[40px]" />
                     </div>
                 </div>
             </div>
@@ -105,14 +119,12 @@ const SavedInternships = () => {
                 </div>
             ) : (
                 <div className="space-y-10">
-                    <div className="flex items-center justify-between px-4">
+                    <div className="flex items-center justify-between px-2">
                         <div className="flex items-center gap-4">
-                            <div className="w-2 h-8 bg-unihub-coral rounded-full shadow-[0_0_15px_rgba(255,107,107,0.3)]" />
-                            <h2 className="text-3xl font-black text-unihub-text font-display tracking-tighter uppercase flex items-center gap-4">
-                                Curated Selection
-                                <span className="bg-unihub-teal/10 text-unihub-teal border border-unihub-teal/20 px-4 py-1.5 rounded-2xl text-sm font-black shadow-sm">{internships.length}</span>
-                            </h2>
+                            <div className="w-2 h-8 bg-unihub-coral rounded-full shadow-[0_0_15px_rgba(255,107,107,0.4)]" />
+                            <h2 className="text-3xl font-black text-unihub-text font-display tracking-tight uppercase">Curated Selection</h2>
                         </div>
+                        <span className="text-[11px] font-black text-unihub-coral bg-unihub-coral/10 border border-unihub-coral/20 px-5 py-2 rounded-2xl shadow-sm uppercase tracking-widest">{internships.length} RECORDS</span>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -121,75 +133,95 @@ const SavedInternships = () => {
                             const daysLeft = Math.ceil((deadlineDate - new Date()) / (1000 * 60 * 60 * 24));
 
                             return (
-                                <div key={internship._id} className="uni-card relative overflow-hidden group flex flex-col h-full animate-in fade-in slide-in-from-bottom-6 duration-500" style={{ animationDelay: `${i * 100}ms` }}>
-                                    <button
-                                        onClick={(e) => handleRemove(e, internship._id)}
-                                        className="absolute top-5 right-5 w-11 h-11 rounded-xl bg-white/40 backdrop-blur-md border border-white/60 text-slate-400 hover:bg-unihub-coral hover:text-white hover:border-unihub-coral transition-all duration-300 z-20 flex items-center justify-center shadow-lg active:scale-95 group-hover:scale-105"
-                                        title="Remove bookmark"
-                                    >
-                                        <Trash2 className="w-4.5 h-4.5" />
-                                    </button>
+                                <div
+                                    key={internship._id}
+                                    className="uni-card relative overflow-hidden group flex flex-col h-full animate-in fade-in slide-in-from-bottom-6 duration-500 shadow-xl"
+                                    style={{ animationDelay: `${i * 80}ms` }}
+                                >
+                                    {/* Visual Header Gradient */}
+                                    <div className="h-28 bg-gradient-to-br from-unihub-teal/5 to-unihub-coral/5 relative p-8 flex justify-between items-start">
+                                        <div className="w-16 h-16 rounded-[22px] bg-white/70 backdrop-blur-xl border border-white/80 shadow-lg flex items-center justify-center text-2xl font-black text-unihub-teal group-hover:scale-110 group-hover:rotate-3 transition-all duration-500">
+                                            <span className="relative z-10">{internship.company?.charAt(0) || 'C'}</span>
+                                            <div className="absolute inset-0 bg-unihub-teal/5 rounded-[22px]" />
+                                        </div>
+                                        <div className="flex flex-col items-end gap-2 pr-12">
+                                            <span className={`badge ${
+                                                internship.type === 'Remote' ? 'badge-teal' :
+                                                internship.type === 'On-site' ? 'badge-coral' :
+                                                'badge-amber'
+                                            } border border-white/20 shadow-sm uppercase tracking-widest text-[10px]`}>{internship.type}</span>
+                                        </div>
 
-                                    <Link to={`/internships/${internship._id}`} className="p-8 md:p-10 flex flex-col h-full space-y-8">
-                                        <div className="flex items-start gap-5">
-                                            <div className="w-16 h-16 rounded-[22px] bg-white/60 backdrop-blur-xl border border-white/80 flex items-center justify-center text-2xl font-black text-unihub-teal group-hover:scale-110 group-hover:rotate-3 transition-transform flex-shrink-0 shadow-lg relative">
-                                                <div className="absolute inset-0 bg-unihub-teal/5 rounded-[22px]" />
-                                                <span className="relative z-10">{internship.company.charAt(0)}</span>
+                                        {/* Decorative Flare */}
+                                        <div className="absolute -top-10 -left-10 w-24 h-24 bg-unihub-teal/5 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity" />
+                                    </div>
+
+                                    <div onClick={() => setSelectedId(internship._id)} className="px-8 pb-8 pt-2 flex-1 flex flex-col relative group/link cursor-pointer">
+                                        <button
+                                            onClick={(e) => handleRemove(e, internship._id)}
+                                            className="absolute -top-16 right-0 z-10 w-11 h-11 rounded-xl bg-white/60 backdrop-blur-md border border-white/60 text-slate-400 hover:bg-unihub-coral hover:text-white hover:border-unihub-coral transition-all duration-300 flex items-center justify-center shadow-lg active:scale-95"
+                                            title="Remove bookmark"
+                                        >
+                                            <Trash2 className="w-4.5 h-4.5" />
+                                        </button>
+
+                                        <div className="mb-5 mt-2">
+                                            <h3 className="text-xl font-extrabold text-unihub-text group-hover/link:text-unihub-teal transition-colors line-clamp-1 mb-1 font-display tracking-tight">{internship.title}</h3>
+                                            <div className="flex items-center gap-3 text-[11px] font-bold text-unihub-textMuted uppercase tracking-widest opacity-80">
+                                                <span className="text-unihub-teal/80">{internship.company}</span>
+                                                <span className="opacity-20">|</span>
+                                                <div className="flex items-center gap-1">
+                                                    <MapPin className="w-3.5 h-3.5 opacity-60" />
+                                                    {internship.location}
+                                                </div>
                                             </div>
-                                            <div className="space-y-1.5 overflow-hidden flex-1 mt-1">
-                                                <h3 className="font-extrabold text-unihub-text text-xl leading-[1.2] truncate group-hover:text-primary transition-colors font-display tracking-tight">{internship.title}</h3>
-                                                <p className="text-[11px] font-bold text-unihub-textMuted flex items-center gap-1.5 uppercase tracking-[0.1em] opacity-80">
-                                                    <ArrowUpRight className="w-3.5 h-3.5 text-unihub-teal/60" />
-                                                    {internship.company}
+                                        </div>
+
+                                        <p className="text-sm text-unihub-textMuted line-clamp-2 mb-8 leading-relaxed font-medium italic opacity-80 group-hover/link:opacity-100 transition-opacity">
+                                            {internship.description}
+                                        </p>
+
+                                        <div className="flex flex-wrap gap-2 mb-8">
+                                            {(internship.skills || []).slice(0, 3).map(skill => (
+                                                <span key={skill} className="bg-white/40 backdrop-blur-md text-unihub-textMuted text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-xl border border-white/60 shadow-sm group-hover/link:border-unihub-teal/30 transition-colors">{skill}</span>
+                                            ))}
+                                            {(internship.skills || []).length > 3 && (
+                                                <span className="text-[10px] font-bold text-unihub-textMuted/60 pt-1.5 font-display">+{internship.skills.length - 3}</span>
+                                            )}
+                                        </div>
+
+                                        <div className="mt-auto pt-8 border-t border-black/5 flex items-center justify-between">
+                                            <div className="flex flex-col">
+                                                <p className="uni-label mb-1 uppercase tracking-widest opacity-60">Revenue</p>
+                                                <p className="text-base font-black text-unihub-text font-display tracking-tight">
+                                                    {internship.stipend?.replace(/rs\.?/i, 'LKR')}
                                                 </p>
                                             </div>
-                                        </div>
-
-                                        <div className="space-y-5">
-                                            <div className="flex flex-wrap gap-2">
-                                                <span className={`badge ${
-                                                    internship.type === 'Remote' ? 'badge-teal' :
-                                                    internship.type === 'On-site' ? 'badge-coral' : 'badge-amber'
-                                                } border border-white/20 shadow-sm`}>{internship.type}</span>
-                                                <span className="badge bg-unihub-yellow/20 text-yellow-800 border border-unihub-yellow/20 shadow-sm">
-                                                    <DollarSign className="w-3.5 h-3.5" />
-                                                    {internship.stipend}
-                                                </span>
-                                            </div>
-
-                                            <div className="flex flex-wrap gap-2">
-                                                {(internship.skills || []).slice(0, 3).map(s => (
-                                                    <span key={s} className="bg-white/40 backdrop-blur-md text-unihub-textMuted text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-xl border border-white/60 shadow-sm group-hover:border-unihub-teal/30 transition-colors">
-                                                        {s}
-                                                    </span>
-                                                ))}
-                                                {(internship.skills || []).length > 3 && (
-                                                    <span className="text-[10px] font-bold text-unihub-textMuted/60 pt-1.5 font-display">+{internship.skills.length - 3}</span>
-                                                )}
+                                            <div className="text-right flex flex-col items-end gap-2.5">
+                                                <DeadlineCountdown deadline={internship.deadline} />
                                             </div>
                                         </div>
+                                    </div>
 
-                                        <div className="pt-8 border-t border-black/5 flex items-center justify-between mt-auto">
-                                            <div className="flex items-center gap-2.5">
-                                                <div className={`w-2.5 h-2.5 rounded-full shadow-[0_0_8px] ${daysLeft <= 3 ? 'bg-rose-500 shadow-rose-500/50 animate-pulse' : 'bg-unihub-teal shadow-unihub-teal/50'}`} />
-                                                <span className={`text-[11px] font-black uppercase tracking-[0.1em] font-display ${daysLeft <= 3 ? 'text-rose-500' : 'text-unihub-textMuted'}`}>
-                                                    {daysLeft > 0 ? `${daysLeft} days to close` : 'Closed'}
-                                                </span>
-                                            </div>
-                                            <div className="flex items-center gap-1.5 text-[11px] font-black text-unihub-text uppercase tracking-[0.25em] group-hover:gap-3 transition-all font-display opacity-80 group-hover:opacity-100 group-hover:text-primary">
-                                                ENGAGE
-                                                <ChevronRight className="w-4 h-4" />
-                                            </div>
-                                        </div>
-                                    </Link>
-                                    
-                                    {/* Glass corner flare */}
-                                    <div className="absolute -bottom-4 -right-4 w-16 h-16 bg-gradient-to-br from-unihub-teal/0 to-unihub-teal/10 blur-xl opacity-0 group-hover:opacity-100 transition-opacity" />
+                                    {/* Visual Bottom Border */}
+                                    <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-unihub-teal to-unihub-coral opacity-0 group-hover:opacity-100 transition-opacity" />
                                 </div>
                             );
                         })}
                     </div>
                 </div>
+            )}
+
+            {selectedId && (
+                <InternshipDetailModal 
+                    internshipId={selectedId} 
+                    onClose={() => setSelectedId(null)} 
+                    savedIds={new Set(internships.map(i => i._id))}
+                    onBookmarkToggle={(id) => {
+                        const fakeEvent = { preventDefault: () => {}, stopPropagation: () => {} };
+                        handleRemove(fakeEvent, id);
+                    }}
+                />
             )}
         </div>
     );

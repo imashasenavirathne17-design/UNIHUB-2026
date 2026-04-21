@@ -134,14 +134,16 @@ const BookingDashboard = () => {
                 </div>
                 <div className="px-8 md:px-16 py-14 md:py-20 relative z-10">
                     <div className="max-w-3xl space-y-6">
-                        <div className="inline-flex items-center gap-2.5 px-5 py-2 rounded-full bg-white/10 backdrop-blur-xl border border-white/20 text-[11px] font-bold text-white uppercase tracking-[0.2em] shadow-xl">
+                        <div className="inline-flex items-center gap-2.5 px-5 py-2 rounded-full bg-white/10 backdrop-blur-xl border border-white/20 text-[11px] font-bold text-white tracking-[0.2em] shadow-xl">
                             <MapPin className="w-4 h-4 text-unihub-yellow" /> Space Control v4.0
                         </div>
                         <h1 className="text-4xl md:text-6xl font-black text-white leading-[1.1] tracking-tighter font-display">
                             Campus <span className="text-unihub-yellow">Booking</span>.
                         </h1>
-                        <p className="text-white/80 font-medium text-base max-w-xl leading-relaxed">
-                            {isStaff ? 'Strategic management of laboratory and hall resources across campus.' : 'Transparent view of campus space utilization and availability.'}
+                        <p className="text-white/80 font-medium text-base max-w-xl leading-relaxed italic opacity-90">
+                            {isStaff 
+                                ? "Strategic Management Of Laboratory And Hall Resources Across Campus.".split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ')
+                                : "Transparent View Of Campus Space Utilization And Availability.".split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ')}
                         </p>
                         <div className="flex flex-wrap items-center gap-4 pt-2">
                             {isStaff && <div className="p-2 rounded-xl bg-white/10 border border-white/20"><NotificationBell /></div>}
@@ -149,12 +151,6 @@ const BookingDashboard = () => {
                                 className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/20 text-white px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-white/20 transition-all active:scale-95">
                                 <AlertTriangle className="w-4 h-4 text-unihub-yellow" /> Report Issue
                             </button>
-                            {isStaff && (
-                                <Link to="/facilities/analytics"
-                                    className="inline-flex items-center gap-2 bg-white text-unihub-teal px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl hover:bg-unihub-yellow hover:text-unihub-text transition-all active:scale-95">
-                                    <BarChart2 className="w-4 h-4" /> Analytics Engine
-                                </Link>
-                            )}
                         </div>
                     </div>
                 </div>
@@ -210,7 +206,7 @@ const BookingDashboard = () => {
                     <div className="w-1.5 h-7 bg-unihub-teal rounded-full" />
                     <h2 className="text-3xl font-black text-unihub-text tracking-tighter uppercase">Level {activeFloor} Strategy <span className="text-unihub-textMuted font-medium italic lowercase tracking-tight">Layout</span></h2>
                     {isPastDate && (
-                        <div className="flex items-center gap-2 text-unihub-coral font-black text-[10px] uppercase tracking-widest bg-rose-50 px-4 py-2 rounded-full border border-rose-100 shadow-sm ml-auto">
+                        <div className="flex items-center gap-2 text-unihub-coral font-black text-[10px] uppercase tracking-widest bg-unihub-coral/10 px-4 py-2 rounded-full border border-unihub-coral/20 shadow-sm ml-auto">
                             <AlertCircle className="w-3.5 h-3.5" /> Archival View
                         </div>
                     )}
@@ -256,6 +252,9 @@ const BookingDashboard = () => {
                             const currentHour = new Date().getHours();
                             const isPast = bookingDate < today || (bookingDate === today && endHour <= currentHour);
                             const isToday = bookingDate === today && !isPast;
+                            
+                            const currentUserId = user?._id || user?.id;
+                            const isOwner = booking.userId === currentUserId || booking.userId?._id === currentUserId || user?.role === 'admin';
 
                             return (
                                 <div key={booking._id}
@@ -276,11 +275,15 @@ const BookingDashboard = () => {
                                         </div>
                                         <div className="flex flex-col gap-1.5 items-end">
                                             {booking.recurrence === 'weekly' && (
-                                                <span className="badge badge-violet">
+                                                <span className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-unihub-teal/10 text-unihub-teal border border-unihub-teal/20 text-[10px] font-black uppercase tracking-widest">
                                                     <RefreshCw className="w-3 h-3" /> Series
                                                 </span>
                                             )}
-                                            {isToday && <span className="badge badge-amber">Live</span>}
+                                            {isToday && (
+                                                <span className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-unihub-yellow/10 text-unihub-yellow border border-unihub-yellow/20 text-[10px] font-black uppercase tracking-widest">
+                                                    Live
+                                                </span>
+                                            )}
                                         </div>
                                     </div>
 
@@ -299,22 +302,38 @@ const BookingDashboard = () => {
                                             </div>
                                             <span className={`text-xs font-medium ${isPast ? 'text-gray-300' : 'text-unihub-text'}`}>{booking.startTime} — {booking.endTime}</span>
                                         </div>
+                                        {!isOwner && !isPast && (
+                                            <div className="flex items-center gap-3 mt-2">
+                                                <div className="w-7 h-7 rounded-lg bg-indigo-50 flex items-center justify-center">
+                                                    <Info className="w-3.5 h-3.5 text-indigo-400" />
+                                                </div>
+                                                <span className="text-[10px] font-black uppercase tracking-widest text-indigo-400">{booking.lecturerName || 'Another Lecturer'}</span>
+                                            </div>
+                                        )}
                                     </div>
 
                                     {isPast ? (
                                         <div className="bg-gray-50 w-full py-3 rounded-xl text-center border border-gray-100 relative z-10">
-                                            <span className="badge badge-gray">Completed</span>
+                                            <span className="px-3 py-1 rounded-lg bg-gray-100 text-gray-400 border border-gray-200 text-[10px] font-black uppercase tracking-widest">Completed</span>
                                         </div>
                                     ) : (
                                         <div className="flex items-center gap-2 relative z-10">
-                                            <button onClick={() => handleEditClick(booking)}
-                                                className="btn btn-outline btn-sm flex-1">
-                                                <Edit2 className="w-3.5 h-3.5" /> Edit
-                                            </button>
-                                            <button onClick={() => handleDeleteBooking(booking)}
-                                                className="btn btn-danger btn-sm flex-1">
-                                                <Trash2 className="w-3.5 h-3.5" /> Delete
-                                            </button>
+                                            {isOwner ? (
+                                                <>
+                                                    <button onClick={() => handleEditClick(booking)}
+                                                        className="btn btn-outline btn-sm flex-1 hover:bg-unihub-teal hover:text-white hover:border-unihub-teal transition-colors">
+                                                        <Edit2 className="w-3.5 h-3.5" /> Edit
+                                                    </button>
+                                                    <button onClick={() => handleDeleteBooking(booking)}
+                                                        className="btn py-2 px-4 rounded-xl flex-1 text-rose-500 bg-rose-50 hover:bg-rose-500 hover:text-white transition-colors text-xs font-bold flex flex-row items-center justify-center gap-2">
+                                                        <Trash2 className="w-3.5 h-3.5" /> Delete
+                                                    </button>
+                                                </>
+                                            ) : (
+                                                <div className="w-full text-center py-2.5 bg-gray-50 rounded-xl border border-gray-100">
+                                                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Secured Reservation</span>
+                                                </div>
+                                            )}
                                         </div>
                                     )}
                                 </div>

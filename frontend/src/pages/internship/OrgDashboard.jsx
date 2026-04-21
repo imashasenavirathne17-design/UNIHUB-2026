@@ -1,7 +1,8 @@
-import { useState, useEffect, useContext } from 'react';
+import { useState, useEffect, useContext, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import Swal from 'sweetalert2';
+import { io } from 'socket.io-client';
 import { AuthContext } from '../../context/AuthContext';
 import {
     Briefcase,
@@ -22,8 +23,12 @@ import {
     Target,
     Activity,
     Send,
-    ShieldCheck,
-    Globe
+    Globe,
+    Mail,
+    Pencil,
+    Trash2,
+    X,
+    MessageCircle
 } from 'lucide-react';
 
 const statusColors = {
@@ -44,6 +49,15 @@ const OrgDashboard = () => {
     const [note, setNote] = useState('');
     const [noteTarget, setNoteTarget] = useState(null);
     const [postModal, setPostModal] = useState(false);
+    const [editTargetId, setEditTargetId] = useState(null);
+
+    // Chat drawer state
+    const [chatDrawer, setChatDrawer] = useState(null); // { applicant, conversationId, receiverId }
+    const [messages, setMessages] = useState([]);
+    const [newMessage, setNewMessage] = useState('');
+    const [msgLoading, setMsgLoading] = useState(false);
+    const messagesEndRef = useRef(null);
+    const socketRef = useRef(null);
     const [postForm, setPostForm] = useState({
         title: '', company: user?.name || '', location: '', type: 'Remote',
         description: '', requirements: '', skills: '',
@@ -68,6 +82,53 @@ const OrgDashboard = () => {
     useEffect(() => {
         fetchDashboard();
     }, []);
+
+    // Socket.io setup for real-time chat
+    useEffect(() => {
+        socketRef.current = io('http://localhost:5000');
+        socketRef.current.on('receive_message', (msg) => {
+            setMessages(prev => [...prev, msg]);
+        });
+        return () => socketRef.current.disconnect();
+    }, []);
+
+    // Auto-scroll to bottom on new messages
+    useEffect(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [messages]);
+
+    const openChat = async (app) => {
+        setMsgLoading(true);
+        try {
+            const { data: conv } = await axios.post('http://localhost:5000/api/internships/chat/conversation', {
+                receiverId: app.applicantId._id,
+                applicationId: app._id
+            }, config);
+            const { data: msgs } = await axios.get(`http://localhost:5000/api/internships/chat/messages/${conv._id}`, config);
+            setMessages(msgs);
+            setChatDrawer({ applicant: app.applicantId, conversationId: conv._id, receiverId: app.applicantId._id });
+            socketRef.current.emit('join_conversation', conv._id);
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setMsgLoading(false);
+        }
+    };
+
+    const sendMessage = async () => {
+        if (!newMessage.trim() || !chatDrawer) return;
+        const { conversationId, receiverId } = chatDrawer;
+        const optimisticMsg = { _id: Date.now(), conversationId, senderId: user?._id || JSON.parse(localStorage.getItem('user'))?._id, receiverId, text: newMessage, createdAt: new Date().toISOString() };
+        setMessages(prev => [...prev, optimisticMsg]);
+        const text = newMessage;
+        setNewMessage('');
+        try {
+            const { data: saved } = await axios.post('http://localhost:5000/api/internships/chat/messages', { conversationId, receiverId, text }, config);
+            socketRef.current.emit('send_message', { ...saved, conversationId });
+        } catch (err) {
+            console.error(err);
+        }
+    };
 
     const loadApplicants = async (jobId) => {
         setSelectedJob(jobId);
@@ -94,26 +155,20 @@ const OrgDashboard = () => {
             setNoteTarget(null);
             setNote('');
             Swal.fire({
-                title: 'Status Updated',
+                title: 'Status Updated!',
                 text: `Applicant status changed to ${status.toUpperCase()}`,
                 icon: 'success',
-                timer: 1500,
+                confirmButtonColor: '#14B8A6',
+                timer: 2000,
                 showConfirmButton: false,
-                toast: true,
-                position: 'top-end',
-                background: '#ffffff',
-                color: '#1e293b',
                 iconColor: '#14B8A6'
             });
         } catch (err) {
             Swal.fire({
                 title: 'Update Failed',
-                text: 'Could not update applicant status',
+                text: 'Could not update applicant status.',
                 icon: 'error',
-                toast: true,
-                position: 'top-end',
-                showConfirmButton: false,
-                timer: 2000
+                confirmButtonColor: '#FF6B6B',
             });
             console.error(err);
         } finally {
@@ -123,13 +178,33 @@ const OrgDashboard = () => {
 
     const handlePostJob = async (e) => {
         e.preventDefault();
+
+        const today = new Date().toISOString().split('T')[0];
+        if (postForm.deadline < today) {
+            Swal.fire({
+                title: 'Invalid Deadline',
+                text: 'The temporal deadline cannot be set to a previous date.',
+                icon: 'warning',
+                confirmButtonColor: '#14B8A6'
+            });
+            return;
+        }
+
         try {
-            await axios.post('http://localhost:5000/api/internships', {
+            const payload = {
                 ...postForm,
-                requirements: postForm.requirements.split(',').map(s => s.trim()).filter(s => s),
-                skills: postForm.skills.split(',').map(s => s.trim()).filter(s => s)
-            }, config);
+                requirements: typeof postForm.requirements === 'string' ? postForm.requirements.split(',').map(s => s.trim()).filter(s => s) : postForm.requirements,
+                skills: typeof postForm.skills === 'string' ? postForm.skills.split(',').map(s => s.trim()).filter(s => s) : postForm.skills
+            };
+
+            if (editTargetId) {
+                await axios.put(`http://localhost:5000/api/internships/${editTargetId}`, payload, config);
+            } else {
+                await axios.post('http://localhost:5000/api/internships', payload, config);
+            }
+
             setPostModal(false);
+            setEditTargetId(null);
             setPostForm({ 
                 title: '', 
                 company: user?.name || '', 
@@ -144,15 +219,65 @@ const OrgDashboard = () => {
             });
             fetchDashboard();
             Swal.fire({
-                title: 'Strategic Posting Live!',
-                text: `Your internship "${postForm.title}" is now active in the repository.`,
+                title: editTargetId ? 'Posting Updated!' : 'Strategic Posting Live!',
+                text: editTargetId ? `The internship "${postForm.title}" has been updated.` : `Your internship "${postForm.title}" is now active in the repository.`,
                 icon: 'success',
                 timer: 2000,
                 showConfirmButton: false,
                 iconColor: '#14B8A6'
             });
         } catch (err) {
-            Swal.fire('Error', err.response?.data?.message || 'Failed to post job', 'error');
+            Swal.fire('Error', err.response?.data?.message || 'Failed to save job', 'error');
+        }
+    };
+
+    const openEditModal = (job) => {
+        setEditTargetId(job._id);
+        setPostForm({
+            title: job.title || '',
+            company: job.company || user?.name || '',
+            location: job.location || '',
+            type: job.type || 'Remote',
+            description: job.description || '',
+            requirements: job.requirements ? job.requirements.join(', ') : '',
+            skills: job.skills ? job.skills.join(', ') : '',
+            stipend: job.stipend || '',
+            duration: job.duration || '',
+            deadline: job.deadline ? new Date(job.deadline).toISOString().split('T')[0] : ''
+        });
+        setPostModal(true);
+    };
+
+    const handleDeleteJob = async (id) => {
+        const result = await Swal.fire({
+            title: 'Delete Posting?',
+            text: 'This will permanently remove the internship and all associated candidacies.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#FF6B6B',
+            cancelButtonColor: '#E2E8F0',
+            confirmButtonText: 'Yes, Terminate',
+            cancelButtonText: 'Abort'
+        });
+
+        if (result.isConfirmed) {
+            try {
+                await axios.delete(`http://localhost:5000/api/internships/${id}`, config);
+                if (selectedJob === id) {
+                    setSelectedJob(null);
+                    setApplicants([]);
+                }
+                fetchDashboard();
+                Swal.fire({
+                    title: 'Terminated',
+                    text: 'The internship node was removed.',
+                    icon: 'success',
+                    timer: 1500,
+                    showConfirmButton: false
+                });
+            } catch (err) {
+                Swal.fire('Error', 'Failed to delete job', 'error');
+            }
         }
     };
 
@@ -166,33 +291,38 @@ const OrgDashboard = () => {
     );
 
     return (
+        <>
         <div className="max-w-7xl mx-auto space-y-10 pb-16">
-            {/* Hero */}
-            <div className="relative overflow-hidden py-16 md:py-24 rounded-[40px] shadow-2xl mt-4 glass group">
-                <div className="absolute inset-0 -z-10 group-hover:scale-110 transition-transform duration-1000">
-                    <div className="absolute top-[-20%] right-[-10%] w-[500px] h-[500px] bg-unihub-teal/20 blur-[100px] rounded-full" />
-                    <div className="absolute bottom-[-20%] left-[-10%] w-[500px] h-[500px] bg-unihub-coral/20 blur-[100px] rounded-full" />
-                    <Globe className="w-96 h-96 absolute -right-20 -top-20 text-unihub-teal/5 animate-pulse rotate-12" strokeWidth={0.5} />
-                    <ShieldCheck className="w-64 h-64 absolute left-10 bottom-10 text-unihub-coral/5 -rotate-12" strokeWidth={0.5} />
+            {/* Hero Section */}
+            <div className="relative rounded-[32px] overflow-hidden shadow-2xl mt-4 bg-gradient-to-br from-unihub-teal to-[#0d857a] group">
+                <div className="absolute inset-0 overflow-hidden pointer-events-none group-hover:scale-110 transition-transform duration-1000">
+                    <div className="absolute top-[-20%] right-[-10%] w-[700px] h-[700px] bg-white opacity-10 blur-[120px] rounded-full mix-blend-overlay animate-pulse" />
+                    <div className="absolute bottom-[-10%] left-[-10%] w-[500px] h-[500px] bg-white opacity-5 blur-[100px] rounded-full" />
+                    <Globe className="absolute -right-16 -top-16 w-80 h-80 text-white opacity-10 rotate-12" strokeWidth={0.5} />
                 </div>
 
-                <div className="px-10 md:px-16 relative z-10 flex flex-col md:flex-row items-center justify-between gap-10">
-                    <div className="max-w-2xl space-y-8 text-center md:text-left">
-                        <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-unihub-teal/10 border border-unihub-teal/20 text-[11px] font-black text-unihub-teal uppercase tracking-[0.2em] shadow-sm font-display mb-2">
-                            <Activity className="w-4 h-4" /> Talent Acquisition Hub
+                <div className="px-8 md:px-16 py-14 md:py-20 relative z-10">
+                    <div className="max-w-3xl space-y-6">
+                        <div className="inline-flex items-center gap-2.5 px-5 py-2 rounded-full bg-white/10 backdrop-blur-xl border border-white/20 text-[11px] font-bold text-white tracking-[0.2em] shadow-xl">
+                            <Activity className="w-4 h-4 text-unihub-yellow" /> Talent Acquisition Hub
                         </div>
-                        <h1 className="text-4xl md:text-6xl font-black text-unihub-text leading-[1.1] tracking-tighter font-display">
-                            Manage Your <span className="text-gradient">Greatest Assets</span>.
+                        <h1 className="text-4xl md:text-6xl font-black text-white leading-[1.1] tracking-normal font-display">
+                            Find Top <span className="text-unihub-yellow">Talent</span>.
                         </h1>
-                        <p className="text-unihub-textMuted font-medium text-base md:text-lg max-w-xl leading-relaxed italic">
-                            Review applications, shortlist high-potential talent, and orchestrate your university internship portfolio with absolute precision.
+                        <p className="text-white/90 font-medium text-base md:text-lg max-w-xl leading-relaxed italic opacity-80">
+                            {"Review applications, shortlist high-potential talent, and orchestrate your university internship portfolio with absolute precision.".split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ')}
                         </p>
+
                         <div className="pt-2">
                             <button
-                                onClick={() => setPostModal(true)}
-                                className="btn btn-primary px-10 py-4 rounded-[20px] font-black text-[12px] tracking-[0.2em] shadow-xl hover:shadow-unihub-teal/30 active:scale-95 group/btn font-display uppercase flex items-center gap-3"
+                                onClick={() => {
+                                    setEditTargetId(null);
+                                    setPostForm({ title: '', company: user?.name || '', location: '', type: 'Remote', description: '', requirements: '', skills: '', stipend: '', duration: '', deadline: '' });
+                                    setPostModal(true);
+                                }}
+                                className="btn bg-white text-unihub-teal hover:bg-slate-50 shadow-xl"
                             >
-                                <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform duration-500" />
+                                <Plus className="w-4 h-4" />
                                 Initiate New Posting
                             </button>
                         </div>
@@ -210,8 +340,12 @@ const OrgDashboard = () => {
                         <p className="text-unihub-textMuted max-w-sm mx-auto text-base font-medium leading-relaxed italic">Start by projecting your first internship opportunity into the platform repository.</p>
                     </div>
                     <button
-                        onClick={() => setPostModal(true)}
-                        className="btn btn-secondary px-10 py-4 rounded-[20px] font-black text-[11px] tracking-[0.2em] shadow-lg group-hover:shadow-unihub-coral/30 font-display uppercase flex items-center gap-3"
+                        onClick={() => {
+                            setEditTargetId(null);
+                            setPostForm({ title: '', company: user?.name || '', location: '', type: 'Remote', description: '', requirements: '', skills: '', stipend: '', duration: '', deadline: '' });
+                            setPostModal(true);
+                        }}
+                        className="btn btn-primary"
                     >
                          <Plus className="w-4 h-4" /> Create First Listing
                     </button>
@@ -239,9 +373,17 @@ const OrgDashboard = () => {
                                             <p className={`font-black text-[10px] uppercase tracking-widest ${selectedJob === job._id ? 'text-white/70' : 'text-unihub-teal'}`}>
                                                 {job.totalApplicants} CANDIDATES
                                             </p>
-                                            {!job.isActive && (
-                                                <span className="bg-unihub-coral text-white text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest shadow-lg">Archived</span>
-                                            )}
+                                            <div className="flex items-center gap-1.5 z-20">
+                                                {!job.isActive && (
+                                                    <span className="bg-unihub-coral text-white text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest shadow-lg mr-2">Archived</span>
+                                                )}
+                                                <button onClick={(e) => { e.stopPropagation(); openEditModal(job); }} className={`p-1.5 rounded-lg active:scale-95 transition-colors ${selectedJob === job._id ? 'text-white hover:bg-white/20' : 'text-unihub-textMuted hover:text-unihub-teal hover:bg-black/5'}`} title="Edit Posting">
+                                                    <Pencil className="w-4 h-4" />
+                                                </button>
+                                                <button onClick={(e) => { e.stopPropagation(); handleDeleteJob(job._id); }} className={`p-1.5 rounded-lg active:scale-95 transition-colors ${selectedJob === job._id ? 'text-white hover:bg-white/20' : 'text-unihub-textMuted hover:text-unihub-coral hover:bg-black/5'}`} title="Delete Posting">
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            </div>
                                         </div>
                                         <p className={`font-black text-sm leading-snug line-clamp-2 ${selectedJob === job._id ? 'text-white' : 'text-unihub-text'}`}>
                                             {job.title}
@@ -331,6 +473,15 @@ const OrgDashboard = () => {
                                                                         Inspect CV
                                                                     </a>
                                                                 )}
+                                                                <button
+                                                                    onClick={() => openChat(app)}
+                                                                    disabled={msgLoading}
+                                                                    title={`Message ${app.applicantId?.name}`}
+                                                                    className="btn btn-glass px-5 py-2.5 text-[10px] font-black tracking-[0.2em] uppercase flex items-center gap-2.5 border border-unihub-teal/20 text-unihub-teal shadow-sm active:scale-95 hover:bg-unihub-teal hover:text-white transition-all"
+                                                                >
+                                                                    <MessageCircle className="w-4 h-4" />
+                                                                    Message
+                                                                </button>
 
                                                                 <div className="flex items-center gap-4">
                                                                     <div className="flex items-center gap-2 text-[10px] font-black text-unihub-textMuted uppercase tracking-widest opacity-60">
@@ -351,10 +502,7 @@ const OrgDashboard = () => {
                                                                 key={s}
                                                                 onClick={() => updateStatus(app._id, s)}
                                                                 disabled={updatingId === app._id || app.status === s}
-                                                                className={`text-[9px] font-black px-4 py-2.5 rounded-xl border-2 transition-all disabled:opacity-50 uppercase tracking-[0.2em] font-display flex-1 min-w-[120px] ${app.status === s
-                                                                        ? 'bg-unihub-teal border-unihub-teal text-white shadow-lg shadow-unihub-teal/30 scale-105'
-                                                                        : 'glass border-white/60 text-unihub-textMuted hover:border-unihub-teal/40 hover:text-unihub-teal hover:bg-white active:scale-95'
-                                                                    }`}
+                                                                className={`btn ${app.status === s ? 'btn-primary' : 'btn-glass'} flex-1 text-[11px] uppercase tracking-wider`}
                                                             >
                                                                 {s}
                                                             </button>
@@ -377,12 +525,12 @@ const OrgDashboard = () => {
                                                                     autoFocus
                                                                     value={note}
                                                                     onChange={e => setNote(e.target.value)}
-                                                                    placeholder="Append private orchestration note..."
+                                                                    placeholder="Write a private note about this applicant..."
                                                                     className="flex-1 uni-input bg-white/60 border-white/60 focus:bg-white text-xs font-bold font-display uppercase tracking-widest italic"
                                                                 />
                                                                 <div className="flex gap-2">
-                                                                    <button onClick={() => updateStatus(app._id, app.status, note)} className="btn btn-primary px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-xl font-display">Sync Note</button>
-                                                                    <button onClick={() => setNoteTarget(null)} className="btn btn-secondary px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest font-display">Withdraw</button>
+                                                                    <button onClick={() => updateStatus(app._id, app.status, note)} className="btn btn-primary">Save Note</button>
+                                                                    <button onClick={() => setNoteTarget(null)} className="btn btn-secondary">Cancel</button>
                                                                 </div>
                                                             </div>
                                                         ) : (
@@ -391,7 +539,7 @@ const OrgDashboard = () => {
                                                                 className="flex items-center gap-3 text-[10px] font-black text-unihub-textMuted hover:text-unihub-teal transition-all uppercase tracking-[0.3em] font-display group/note-btn"
                                                             >
                                                                 <Plus className="w-4 h-4 group-hover/note-btn:rotate-90 transition-transform" />
-                                                                {app.orgNote ? `Executive Note: "${app.orgNote}"` : 'Append Strategic Intel'}
+                                                                {app.orgNote ? `Private Note: "${app.orgNote}"` : 'Add Private Note'}
                                                             </button>
                                                         )}
                                                     </div>
@@ -414,31 +562,43 @@ const OrgDashboard = () => {
             
             {/* Post Job Modal */}
             {postModal && (
-                <div className="fixed inset-0 bg-black/40 backdrop-blur-xl flex items-center justify-center z-[100] p-6 animate-in fade-in duration-300">
-                    <div className="glass-card rounded-[48px] shadow-[0_0_100px_rgba(0,0,0,0.2)] p-12 max-w-3xl w-full max-h-[85vh] overflow-y-auto relative border border-white/60 animate-in zoom-in-95 slide-in-from-bottom-10 duration-500 no-scrollbar">
-                        <button onClick={() => setPostModal(false)} className="absolute top-10 right-10 w-12 h-12 rounded-2xl bg-black/5 hover:bg-unihub-coral hover:text-white transition-all flex items-center justify-center active:scale-90 group/close">
-                            <XCircle className="w-6 h-6 transition-transform group-hover:rotate-90" />
-                        </button>
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-start justify-center z-[100] p-6 pt-10 overflow-y-auto">
+                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl p-8 relative mb-6">
 
-                        <div className="mb-12">
-                            <div className="w-20 h-20 bg-unihub-teal/10 text-unihub-teal rounded-[28px] flex items-center justify-center mb-8 shadow-inner ring-8 ring-unihub-teal/5 animate-pulse">
-                                <Plus className="w-10 h-10" />
+                        {/* Header Row */}
+                        <div className="flex items-start justify-between mb-6">
+                            <div className="flex items-center gap-3">
+                                <div className="w-12 h-12 bg-unihub-teal rounded-2xl flex items-center justify-center text-white font-black text-xl shadow-md flex-shrink-0">
+                                    {editTargetId ? 'E' : 'I'}
+                                </div>
+                                <div>
+                                    <h2 className="text-lg font-black text-slate-800 leading-tight">
+                                        {editTargetId ? 'Edit Posting' : 'New Posting'}
+                                    </h2>
+                                    <p className="text-xs text-slate-400 font-medium">
+                                        {editTargetId ? 'Update internship details' : 'Create a new internship listing'}
+                                    </p>
+                                </div>
                             </div>
-                            <h2 className="text-4xl font-black text-unihub-text font-display tracking-tighter uppercase mb-2">Initialize Posting</h2>
-                            <p className="text-sm font-bold text-unihub-textMuted uppercase tracking-widest opacity-60 italic font-display">Define the parameters for your next strategic acquisition.</p>
+                            <button
+                                onClick={() => setPostModal(false)}
+                                className="w-9 h-9 rounded-xl bg-red-100 hover:bg-red-500 text-red-400 hover:text-white transition-all flex items-center justify-center active:scale-90 flex-shrink-0"
+                            >
+                                <XCircle className="w-4 h-4" />
+                            </button>
                         </div>
 
-                        <form onSubmit={handlePostJob} className="grid grid-cols-1 md:grid-cols-2 gap-10 pb-4">
-                            <div className="space-y-3 md:col-span-2">
-                                <label className="text-[10px] font-black text-unihub-textMuted uppercase tracking-[0.3em] pl-2 font-display">Target Asset (Job Title)</label>
-                                <div className="relative group/input">
-                                    <div className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within/input:text-unihub-teal transition-colors">
-                                        <Target className="w-5 h-5" />
-                                    </div>
+                        <form onSubmit={handlePostJob} className="space-y-4">
+
+                            {/* Job Title */}
+                            <div>
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Target Asset (Job Title)</label>
+                                <div className="relative">
+                                    <Target className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-unihub-teal" />
                                     <input
                                         required
                                         type="text"
-                                        className="w-full uni-input pl-16 py-6 text-base font-black tracking-tight"
+                                        className="w-full bg-slate-50 border-0 rounded-xl py-2.5 pl-10 pr-4 text-sm font-semibold text-slate-700 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-unihub-teal/30 transition-all"
                                         placeholder="Executive Developer Intern"
                                         value={postForm.title}
                                         onChange={e => setPostForm({ ...postForm, title: e.target.value })}
@@ -446,130 +606,142 @@ const OrgDashboard = () => {
                                 </div>
                             </div>
 
-                            <div className="space-y-3">
-                                <label className="text-[10px] font-black text-unihub-textMuted uppercase tracking-[0.3em] pl-2 font-display">Origin Organization</label>
-                                <input
-                                    readOnly
-                                    type="text"
-                                    className="w-full uni-input bg-black/5 text-slate-400 cursor-not-allowed opacity-60 font-black tracking-widest text-xs"
-                                    value={postForm.company}
-                                />
-                            </div>
-
-                            <div className="space-y-3">
-                                <label className="text-[10px] font-black text-unihub-textMuted uppercase tracking-[0.3em] pl-2 font-display">Operation Mode</label>
-                                <select
-                                    className="w-full uni-input py-6 text-[11px] font-black uppercase tracking-widest appearance-none cursor-pointer"
-                                    value={postForm.type}
-                                    onChange={e => setPostForm({ ...postForm, type: e.target.value })}
-                                >
-                                    <option>Remote</option>
-                                    <option>On-site</option>
-                                    <option>Hybrid</option>
-                                </select>
-                            </div>
-
-                            <div className="space-y-3">
-                                <label className="text-[10px] font-black text-unihub-textMuted uppercase tracking-[0.3em] pl-2 font-display">Node Location</label>
-                                <div className="relative">
-                                    <MapPin className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300" />
+                            {/* Organization + Mode */}
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Origin Organization</label>
                                     <input
-                                        required
+                                        readOnly
                                         type="text"
-                                        className="w-full uni-input pl-16 py-6"
-                                        placeholder="City, Country"
-                                        value={postForm.location}
-                                        onChange={e => setPostForm({ ...postForm, location: e.target.value })}
+                                        className="w-full bg-slate-100 border-0 rounded-xl py-2.5 px-4 text-sm font-semibold text-slate-400 cursor-not-allowed"
+                                        value={postForm.company}
                                     />
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Operation Mode</label>
+                                    <select
+                                        className="w-full bg-slate-50 border-0 rounded-xl py-2.5 px-3 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-unihub-teal/30 transition-all appearance-none cursor-pointer"
+                                        value={postForm.type}
+                                        onChange={e => setPostForm({ ...postForm, type: e.target.value })}
+                                    >
+                                        <option>Remote</option>
+                                        <option>On-site</option>
+                                        <option>Hybrid</option>
+                                    </select>
                                 </div>
                             </div>
 
-                            <div className="space-y-3">
-                                <label className="text-[10px] font-black text-unihub-textMuted uppercase tracking-[0.3em] pl-2 font-display">Predicted Stipend</label>
-                                <div className="relative">
-                                    <DollarSign className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300" />
+                            {/* Location + Stipend */}
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Node Location</label>
+                                    <div className="relative">
+                                        <MapPin className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-unihub-teal" />
+                                        <input
+                                            required
+                                            type="text"
+                                            className="w-full bg-slate-50 border-0 rounded-xl py-2.5 pl-10 pr-3 text-sm font-semibold text-slate-700 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-unihub-teal/30 transition-all"
+                                            placeholder="City, Country"
+                                            value={postForm.location}
+                                            onChange={e => setPostForm({ ...postForm, location: e.target.value })}
+                                        />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Predicted Stipend</label>
+                                    <div className="relative">
+                                        <DollarSign className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-unihub-teal" />
+                                        <input
+                                            required
+                                            type="text"
+                                            className="w-full bg-slate-50 border-0 rounded-xl py-2.5 pl-10 pr-3 text-sm font-semibold text-slate-700 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-unihub-teal/30 transition-all"
+                                            placeholder="LKR 40,000 / Final Index"
+                                            value={postForm.stipend}
+                                            onChange={e => setPostForm({ ...postForm, stipend: e.target.value })}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Duration + Deadline */}
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Engagement Span</label>
+                                    <div className="relative">
+                                        <Clock className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-unihub-teal" />
+                                        <input
+                                            required
+                                            type="text"
+                                            className="w-full bg-slate-50 border-0 rounded-xl py-2.5 pl-10 pr-3 text-sm font-semibold text-slate-700 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-unihub-teal/30 transition-all"
+                                            placeholder="e.g. 6 Cycles"
+                                            value={postForm.duration}
+                                            onChange={e => setPostForm({ ...postForm, duration: e.target.value })}
+                                        />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Temporal Deadline</label>
+                                    <div className="relative">
+                                        <Calendar className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-unihub-teal" />
                                     <input
-                                        required
-                                        type="text"
-                                        className="w-full uni-input pl-16 py-6 font-black"
-                                        placeholder="LKR 40,000 / Final Index"
-                                        value={postForm.stipend}
-                                        onChange={e => setPostForm({ ...postForm, stipend: e.target.value })}
-                                    />
+                                            required
+                                            type="date"
+                                            min={new Date().toISOString().split('T')[0]}
+                                            className="w-full bg-slate-50 border-0 rounded-xl py-2.5 pl-10 pr-3 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-unihub-teal/30 transition-all"
+                                            value={postForm.deadline}
+                                            onChange={e => setPostForm({ ...postForm, deadline: e.target.value })}
+                                        />
+                                    </div>
                                 </div>
                             </div>
 
-                            <div className="space-y-3">
-                                <label className="text-[10px] font-black text-unihub-textMuted uppercase tracking-[0.3em] pl-2 font-display">Engagement Span</label>
-                                <div className="relative">
-                                    <Clock className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300" />
-                                    <input
-                                        required
-                                        type="text"
-                                        className="w-full uni-input pl-16 py-6 font-black"
-                                        placeholder="e.g. 6 Cycles"
-                                        value={postForm.duration}
-                                        onChange={e => setPostForm({ ...postForm, duration: e.target.value })}
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="space-y-3">
-                                <label className="text-[10px] font-black text-unihub-textMuted uppercase tracking-[0.3em] pl-2 font-display">Temporal Deadline</label>
-                                <div className="relative">
-                                    <Calendar className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300" />
-                                    <input
-                                        required
-                                        type="date"
-                                        className="w-full uni-input pl-16 py-6 font-black uppercase tracking-widest text-xs"
-                                        value={postForm.deadline}
-                                        onChange={e => setPostForm({ ...postForm, deadline: e.target.value })}
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="space-y-3 md:col-span-2">
-                                <label className="text-[10px] font-black text-unihub-textMuted uppercase tracking-[0.3em] pl-2 font-display">Technology Matrix (Comma separated)</label>
+                            {/* Skills */}
+                            <div>
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Technology Matrix (Comma separated)</label>
                                 <textarea
                                     required
                                     rows={2}
-                                    className="w-full uni-input py-6 text-sm font-bold italic"
-                                    placeholder="React, TypeScript, Strategic Node Management..."
+                                    className="w-full bg-slate-50 border-0 rounded-xl py-2.5 px-4 text-sm text-slate-700 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-unihub-teal/30 transition-all resize-none"
+                                    placeholder="React, TypeScript, Node Management..."
                                     value={postForm.skills}
                                     onChange={e => setPostForm({ ...postForm, skills: e.target.value })}
                                 />
                             </div>
 
-                            <div className="space-y-3 md:col-span-2">
-                                <label className="text-[10px] font-black text-unihub-textMuted uppercase tracking-[0.3em] pl-2 font-display">Structural Requirements (Comma separated)</label>
+                            {/* Requirements */}
+                            <div>
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Structural Requirements (Comma separated)</label>
                                 <textarea
                                     required
                                     rows={2}
-                                    className="w-full uni-input py-6 text-sm font-bold italic"
-                                    placeholder="Final Year Enrollment, GPA Threshold > 3.2..."
+                                    className="w-full bg-slate-50 border-0 rounded-xl py-2.5 px-4 text-sm text-slate-700 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-unihub-teal/30 transition-all resize-none"
+                                    placeholder="Final Year Enrollment, GPA > 3.2..."
                                     value={postForm.requirements}
                                     onChange={e => setPostForm({ ...postForm, requirements: e.target.value })}
                                 />
                             </div>
 
-                            <div className="space-y-3 md:col-span-2">
-                                <label className="text-[10px] font-black text-unihub-textMuted uppercase tracking-[0.3em] pl-2 font-display">Engagement Narrative (Description)</label>
+                            {/* Description */}
+                            <div>
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Engagement Narrative (Description)</label>
                                 <textarea
                                     required
-                                    rows={5}
-                                    className="w-full uni-input py-6 text-base font-medium italic leading-relaxed"
-                                    placeholder="Articulate the core mission and strategic role impact..."
+                                    rows={3}
+                                    className="w-full bg-slate-50 border-0 rounded-xl py-2.5 px-4 text-sm text-slate-700 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-unihub-teal/30 transition-all resize-none leading-relaxed"
+                                    placeholder="Articulate the core mission and role impact..."
                                     value={postForm.description}
                                     onChange={e => setPostForm({ ...postForm, description: e.target.value })}
                                 />
                             </div>
 
-                            <div className="md:col-span-2 pt-10">
-                                <button type="submit" className="btn btn-primary w-full py-6 text-[16px] font-black uppercase tracking-[0.4em] font-display shadow-2xl hover:shadow-unihub-teal/30 active:scale-95 flex items-center justify-center gap-4">
-                                    <Send className="w-6 h-6" />
-                                    Broadcast Posting
-                                </button>
-                            </div>
+                            {/* Submit */}
+                            <button
+                                type="submit"
+                                className="w-full bg-unihub-teal hover:bg-unihub-tealHover text-white font-black py-3 rounded-xl flex items-center justify-center gap-2 text-sm transition-all active:scale-[0.98] shadow-md mt-1"
+                            >
+                                <CheckCircle2 className="w-4 h-4" />
+                                {editTargetId ? 'Sync Changes' : 'Broadcast Posting'}
+                            </button>
                         </form>
                     </div>
                 </div>
@@ -580,21 +752,95 @@ const OrgDashboard = () => {
                 ORCHESTRATION NODE · REG-{user?.id?.substring(0, 12).toUpperCase() || 'SYS-NULL'}
             </p>
         </div>
+
+        {/* Chat Drawer */}
+        {chatDrawer && (
+            <div className="fixed inset-0 z-[200] pointer-events-none">
+                {/* Backdrop */}
+                <div className="absolute inset-0 bg-black/30 backdrop-blur-sm pointer-events-auto" onClick={() => setChatDrawer(null)} />
+
+                {/* Drawer Panel */}
+                <div className="absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-2xl flex flex-col pointer-events-auto animate-in slide-in-from-right duration-300">
+                    {/* Header */}
+                    <div className="flex items-center gap-4 px-6 py-5 border-b border-slate-100 bg-gradient-to-r from-unihub-teal to-teal-600">
+                        <div className="w-11 h-11 rounded-2xl bg-white/20 backdrop-blur flex items-center justify-center text-white font-black text-lg flex-shrink-0">
+                            {chatDrawer.applicant?.name?.[0]}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <h3 className="font-black text-white text-sm leading-tight truncate">{chatDrawer.applicant?.name}</h3>
+                            <p className="text-white/70 text-[10px] font-bold uppercase tracking-widest truncate">{chatDrawer.applicant?.email}</p>
+                        </div>
+                        <button onClick={() => setChatDrawer(null)} className="w-9 h-9 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-xl text-white transition-all active:scale-90">
+                            <X className="w-5 h-5" />
+                        </button>
+                    </div>
+
+                    {/* Messages */}
+                    <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-slate-50">
+                        {messages.length === 0 && (
+                            <div className="flex flex-col items-center justify-center h-full gap-3 opacity-40">
+                                <MessageCircle className="w-12 h-12 text-slate-300" />
+                                <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest text-center">Start the conversation</p>
+                            </div>
+                        )}
+                        {messages.map((msg) => {
+                            const myId = user?._id || JSON.parse(localStorage.getItem('user') || '{}')?._id;
+                            const isMine = msg.senderId?.toString() === myId?.toString();
+                            return (
+                                <div key={msg._id} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
+                                    <div className={`max-w-[78%] px-4 py-3 rounded-2xl text-sm font-medium leading-relaxed shadow-sm ${
+                                        isMine 
+                                        ? 'bg-unihub-teal text-white rounded-br-md' 
+                                        : 'bg-white text-slate-700 border border-slate-100 rounded-bl-md'
+                                    }`}>
+                                        <p>{msg.text}</p>
+                                        <p className={`text-[9px] font-bold mt-1 ${isMine ? 'text-white/60 text-right' : 'text-slate-400'}`}>
+                                            {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                        </p>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                        <div ref={messagesEndRef} />
+                    </div>
+
+                    {/* Input */}
+                    <div className="px-4 py-4 border-t border-slate-100 bg-white flex items-center gap-3">
+                        <input
+                            type="text"
+                            placeholder={`Message ${chatDrawer.applicant?.name}...`}
+                            value={newMessage}
+                            onChange={(e) => setNewMessage(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
+                            className="flex-1 bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm font-medium focus:outline-none focus:border-unihub-teal transition-all"
+                        />
+                        <button
+                            onClick={sendMessage}
+                            disabled={!newMessage.trim()}
+                            className="w-11 h-11 bg-unihub-teal text-white rounded-2xl flex items-center justify-center shadow-lg shadow-unihub-teal/30 hover:bg-teal-600 transition-all active:scale-90 disabled:opacity-40"
+                        >
+                            <Send className="w-5 h-5" />
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )}
+        </>
     );
 };
 
 const AnalyticsCard = ({ label, value, icon: Icon, color }) => {
     return (
-        <div className="glass p-8 rounded-[36px] border border-white/60 shadow-2xl flex items-center gap-6 group hover:translate-y-[-4px] transition-all relative overflow-hidden">
-            <div className={`w-[60px] h-[60px] shrink-0 rounded-[22px] flex items-center justify-center border border-white/40 shadow-xl ${color} group-hover:scale-110 transition-transform`}>
-                <Icon className="w-7 h-7" />
+        <div className="uni-card p-6 flex items-center gap-5 group relative overflow-hidden">
+            <div className={`w-12 h-12 shrink-0 rounded-xl flex items-center justify-center shadow-md ${color} group-hover:scale-110 transition-transform`}>
+                <Icon className="w-6 h-6" />
             </div>
             <div className="flex flex-col justify-center relative z-10">
-                <p className="text-[10px] font-black text-unihub-textMuted uppercase tracking-[0.3em] mb-1 font-display opacity-80">{label}</p>
-                <p className="text-3xl font-black text-unihub-text leading-none font-display tracking-tighter">{value}</p>
+                <p className="uni-label m-0 mb-1">{label}</p>
+                <p className="text-2xl font-bold text-unihub-text leading-none">{value}</p>
             </div>
             {/* Decor */}
-            <div className="absolute -bottom-6 -right-6 w-16 h-16 bg-unihub-teal/5 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition-opacity" />
+            <div className="absolute -bottom-4 -right-4 w-12 h-12 bg-unihub-teal/5 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition-opacity" />
         </div>
     );
 };

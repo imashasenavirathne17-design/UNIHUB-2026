@@ -45,28 +45,28 @@ const ExamsDashboard = ({ setActiveSection }) => {
                     value="24" 
                     subtitle="+3 this week" 
                     icon={BookOpen} 
-                    colorClass="bg-blue-50 text-blue-600" 
+                    colorClass="bg-unihub-teal/10 text-unihub-teal" 
                 />
                 <StatCard 
                     title="Average Score" 
                     value="82%" 
                     subtitle="Top 15% of class" 
                     icon={TrendingUp} 
-                    colorClass="bg-green-50 text-green-600" 
+                    colorClass="bg-unihub-teal/10 text-unihub-teal" 
                 />
                 <StatCard 
                     title="Time Spent" 
                     value="18h" 
                     subtitle="In practice sessions" 
                     icon={Clock} 
-                    colorClass="bg-purple-50 text-purple-600" 
+                    colorClass="bg-unihub-coral/10 text-unihub-coral" 
                 />
                 <StatCard 
                     title="Performance" 
                     value="Excellent" 
                     subtitle="Consistent growth" 
                     icon={Award} 
-                    colorClass="bg-orange-50 text-orange-600" 
+                    colorClass="bg-unihub-yellow/10 text-unihub-yellow" 
                 />
             </div>
 
@@ -75,7 +75,7 @@ const ExamsDashboard = ({ setActiveSection }) => {
                 <div className="lg:col-span-2 bg-white/70 backdrop-blur-xl border border-white rounded-3xl p-6 shadow-soft">
                     <div className="flex items-center justify-between mb-6">
                         <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                            <Activity className="w-5 h-5 text-indigo-500" />
+                            <Activity className="w-5 h-5 text-unihub-teal" />
                             Score Trend (Last 7 Days)
                         </h2>
                     </div>
@@ -92,7 +92,7 @@ const ExamsDashboard = ({ setActiveSection }) => {
                                 <Line 
                                     type="monotone" 
                                     dataKey="score" 
-                                    stroke="#6366f1" 
+                                    stroke="#14B8A6" 
                                     strokeWidth={4} 
                                     dot={{ r: 4, strokeWidth: 2 }} 
                                     activeDot={{ r: 8 }} 
@@ -104,11 +104,11 @@ const ExamsDashboard = ({ setActiveSection }) => {
 
                 {/* Quick Actions */}
                 <div className="space-y-6">
-                    <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-3xl p-6 shadow-card text-white relative overflow-hidden group hover:scale-[1.02] transition-transform cursor-pointer" onClick={() => setActiveSection('practice')}>
+                    <div className="bg-gradient-to-br from-unihub-teal to-[#0d857a] rounded-3xl p-6 shadow-card text-white relative overflow-hidden group hover:scale-[1.02] transition-transform cursor-pointer" onClick={() => setActiveSection('practice')}>
                         <div className="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 bg-white opacity-10 rounded-full blur-2xl group-hover:opacity-20 transition-opacity"></div>
                         <PlayCircle className="w-10 h-10 mb-4 opacity-80" />
                         <h3 className="text-2xl font-black mb-1">Start New Exam</h3>
-                        <p className="text-indigo-100 text-sm mb-6">Jump back into your custom practice sessions.</p>
+                        <p className="text-white/80 text-sm mb-6">Jump back into your custom practice sessions.</p>
                         <div className="flex items-center gap-2 text-sm font-bold bg-white/20 w-fit px-4 py-2 rounded-full backdrop-blur-sm group-hover:bg-white/30 transition-colors">
                             Begin Now <ChevronRight className="w-4 h-4" />
                         </div>
@@ -117,17 +117,17 @@ const ExamsDashboard = ({ setActiveSection }) => {
                     <div className="bg-white/70 backdrop-blur-xl border border-white rounded-3xl p-6 shadow-soft">
                         <h3 className="font-bold text-gray-800 mb-4">Recommended Topics</h3>
                         <div className="space-y-3">
-                            <div className="flex items-center justify-between p-3 rounded-2xl bg-gray-50 border border-gray-100 hover:border-indigo-200 cursor-pointer transition-colors" onClick={() => setActiveSection('qbank')}>
+                            <div className="flex items-center justify-between p-3 rounded-2xl bg-gray-50 border border-gray-100 hover:border-unihub-teal/30 cursor-pointer transition-colors" onClick={() => setActiveSection('qbank')}>
                                 <div>
                                     <p className="text-sm font-bold text-gray-800">Advanced Networking</p>
-                                    <p className="text-xs text-red-500 font-medium mt-0.5">Weak Area - 45% Accuracy</p>
+                                    <p className="text-xs text-unihub-coral font-medium mt-0.5">Weak Area - 45% Accuracy</p>
                                 </div>
                                 <ChevronRight className="w-4 h-4 text-gray-400" />
                             </div>
-                            <div className="flex items-center justify-between p-3 rounded-2xl bg-gray-50 border border-gray-100 hover:border-indigo-200 cursor-pointer transition-colors" onClick={() => setActiveSection('qbank')}>
+                            <div className="flex items-center justify-between p-3 rounded-2xl bg-gray-50 border border-gray-100 hover:border-unihub-teal/30 cursor-pointer transition-colors" onClick={() => setActiveSection('qbank')}>
                                 <div>
                                     <p className="text-sm font-bold text-gray-800">Operating Systems</p>
-                                    <p className="text-xs text-orange-500 font-medium mt-0.5">Needs Review - 60% Accuracy</p>
+                                    <p className="text-xs text-unihub-yellow font-medium mt-0.5">Needs Review - 60% Accuracy</p>
                                 </div>
                                 <ChevronRight className="w-4 h-4 text-gray-400" />
                             </div>

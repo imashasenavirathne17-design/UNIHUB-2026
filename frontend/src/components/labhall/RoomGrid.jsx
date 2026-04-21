@@ -15,11 +15,17 @@ const RoomGrid = ({ rooms, bookings, onRoomClick, selectedDate }) => {
     const isToday = selectedDate === todayStr;
 
     const getBookingForSlot = (roomId, slot) => {
+        if (!bookings || !Array.isArray(bookings)) return null;
         return bookings.find(b => {
-            if (b.roomId._id !== roomId) return false;
+            const bRoomId = (b.roomId?._id || b.roomId || '').toString();
+            const targetRoomId = (roomId || '').toString();
+            
+            if (bRoomId !== targetRoomId) return false;
+            if (b.status === 'cancelled') return false;
+            
             const slotHour = parseInt(slot.split(':')[0]);
-            const startHour = parseInt(b.startTime.split(':')[0]);
-            const endHour = parseInt(b.endTime.split(':')[0]);
+            const startHour = parseInt(b.startTime?.split(':')[0] || '0');
+            const endHour = parseInt(b.endTime?.split(':')[0] || '0');
             return slotHour >= startHour && slotHour < endHour;
         });
     };
@@ -29,16 +35,16 @@ const RoomGrid = ({ rooms, bookings, onRoomClick, selectedDate }) => {
             {/* Legend and Time Header */}
             <div className="flex flex-wrap items-center gap-8 mb-10 ml-0 md:ml-48">
                 <div className="flex items-center gap-3">
-                    <div className="w-4 h-4 rounded-md bg-indigo-500 shadow-sm"></div>
+                    <div className="w-4 h-4 rounded-md bg-unihub-teal shadow-sm"></div>
                     <span className="text-sm font-bold text-gray-400 uppercase tracking-widest text-[9px]">Available</span>
                 </div>
                 <div className="flex items-center gap-3">
-                    <div className="w-4 h-4 rounded-md bg-gray-100 shadow-sm"></div>
+                    <div className="w-4 h-4 rounded-md bg-gray-200 shadow-sm border border-gray-300"></div>
                     <span className="text-sm font-bold text-gray-400 uppercase tracking-widest text-[9px]">Booked / Past</span>
                 </div>
                 <div className="flex items-center gap-3">
-                    <div className="w-4 h-4 rounded-md bg-amber-300 shadow-sm"></div>
-                    <span className="text-sm font-bold text-amber-400 uppercase tracking-widest text-[9px]">Maintenance</span>
+                    <div className="w-4 h-4 rounded-md bg-unihub-yellow shadow-sm"></div>
+                    <span className="text-sm font-bold text-unihub-yellow uppercase tracking-widest text-[9px]">Maintenance</span>
                 </div>
             </div>
 
@@ -60,13 +66,13 @@ const RoomGrid = ({ rooms, bookings, onRoomClick, selectedDate }) => {
                     <div key={room._id} className="flex items-center group">
                         {/* Room Info Section */}
                         <div className="w-48 flex-shrink-0 pr-6">
-                            <h3 className="font-black text-gray-800 text-lg leading-tight group-hover:text-indigo-600 transition-colors flex items-center gap-2">
+                            <h3 className="font-black text-gray-800 text-lg leading-tight group-hover:text-unihub-teal transition-colors flex items-center gap-2">
                                 {room.name}
-                                {room.status === 'maintenance' && <span className="text-[10px] font-black bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full border border-amber-200">🔒</span>}
+                                {room.status === 'maintenance' && <span className="text-[10px] font-black bg-unihub-yellow/10 text-unihub-yellow px-2 py-0.5 rounded-full border border-unihub-yellow/20">🔒</span>}
                             </h3>
-                            <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full mt-1 ${room.status === 'maintenance' ? 'bg-amber-50' : 'bg-indigo-50'}`}>
-                                <span className={`w-1.5 h-1.5 rounded-full ${room.status === 'maintenance' ? 'bg-amber-400' : 'bg-indigo-400'}`}></span>
-                                <span className={`text-[10px] font-black uppercase tracking-wider ${room.status === 'maintenance' ? 'text-amber-500' : 'text-indigo-400'}`}>
+                            <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full mt-1 ${room.status === 'maintenance' ? 'bg-unihub-yellow/10 border border-unihub-yellow/20' : 'bg-unihub-teal/10 border border-unihub-teal/20'}`}>
+                                <span className={`w-1.5 h-1.5 rounded-full ${room.status === 'maintenance' ? 'bg-unihub-yellow' : 'bg-unihub-teal'}`}></span>
+                                <span className={`text-[10px] font-black uppercase tracking-wider ${room.status === 'maintenance' ? 'text-unihub-yellow' : 'text-unihub-teal'}`}>
                                     {room.status === 'maintenance' ? 'Maintenance' : room.type === 'lab' ? 'Laboratory' : 'Lecture Hall'}
                                 </span>
                             </div>
@@ -89,16 +95,16 @@ const RoomGrid = ({ rooms, bookings, onRoomClick, selectedDate }) => {
                                         disabled={isBooked || isSlotInPast || room.status === 'maintenance'}
                                         className={`relative w-full h-14 rounded-xl transition-all duration-300 ${
                                             room.status === 'maintenance'
-                                                ? 'bg-amber-100 cursor-not-allowed border border-amber-200'
+                                                ? 'bg-unihub-yellow/10 cursor-not-allowed border border-unihub-yellow/20'
                                                 : isBooked || isSlotInPast
-                                                    ? 'bg-gray-50 cursor-not-allowed border border-gray-100/50'
-                                                    : 'bg-indigo-500 hover:bg-indigo-600 shadow-sm hover:shadow-indigo-200/50 hover:-translate-y-0.5'
+                                                    ? 'bg-gray-200 cursor-not-allowed border border-gray-300/50'
+                                                    : 'bg-unihub-teal hover:bg-[#0d857a] shadow-sm hover:shadow-unihub-teal/20 hover:-translate-y-0.5'
                                         }`}
                                         title={room.status === 'maintenance' ? 'Room under maintenance' : isBooked ? `Booked by ${booking?.lecturerName}` : isSlotInPast ? 'Past Slot' : `Available at ${slot}`}
                                     >
                                         {room.status === 'maintenance' && (
                                             <div className="absolute inset-0 flex items-center justify-center">
-                                                <span className="text-amber-400 text-sm">🔒</span>
+                                                <span className="text-unihub-yellow text-sm">🔒</span>
                                             </div>
                                         )}
                                         {isBooked && room.status !== 'maintenance' && (

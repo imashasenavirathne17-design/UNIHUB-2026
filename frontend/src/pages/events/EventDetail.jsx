@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { eventService } from '../../utils/api';
 import { AuthContext } from '../../context/AuthContext';
 import Swal from 'sweetalert2';
-import { Clock, MapPin, Users, Calendar, ArrowLeft, Trophy } from 'lucide-react';
+import { Clock, MapPin, Users, Calendar, ArrowLeft, Trophy, AlertCircle, Zap, Shield, Send, Activity } from 'lucide-react';
 
 const EventDetail = () => {
     const { id } = useParams();
@@ -20,12 +20,10 @@ const EventDetail = () => {
 
     useEffect(() => {
         if (!event) return;
-
         const timer = setInterval(() => {
             const now = new Date();
             const target = new Date(event.date);
             const diff = target - now;
-
             if (diff <= 0) {
                 clearInterval(timer);
                 setTimeLeft({ days: 0, hours: 0, mins: 0, secs: 0 });
@@ -38,7 +36,6 @@ const EventDetail = () => {
                 });
             }
         }, 1000);
-
         return () => clearInterval(timer);
     }, [event]);
 
@@ -47,8 +44,6 @@ const EventDetail = () => {
         try {
             const { data } = await eventService.getEventById(id);
             setEvent(data);
-            
-            // Check if user is registered (from local storage or another API call)
             const regRes = await eventService.getMyRegistrations();
             setIsRegistered(regRes.data.some(reg => reg.event._id === id));
         } catch (error) {
@@ -63,182 +58,199 @@ const EventDetail = () => {
         try {
             if (isRegistered) {
                 const result = await Swal.fire({
-                    title: 'Unregister?',
+                    title: 'Release Slot?',
                     text: 'Are you sure you want to cancel your registration?',
                     icon: 'warning',
                     showCancelButton: true,
-                    confirmButtonText: 'Yes, cancel it'
+                    confirmButtonColor: '#FF6B6B',
+                    confirmButtonText: 'Yes, release it'
                 });
                 if (result.isConfirmed) {
                     await eventService.unregister(id);
                     setIsRegistered(false);
-                    Swal.fire('Cancelled', 'Your registration has been removed.', 'success');
+                    Swal.fire('Slot Released', 'Your registration has been removed.', 'success');
                 }
             } else {
-                await eventService.register(id);
+                const response = await eventService.register(id);
                 setIsRegistered(true);
-                Swal.fire('Success!', 'You are now registered for this event.', 'success');
+                
+                if (response.data.overlappingEvents && response.data.overlappingEvents.length > 0) {
+                    const overlappingTitles = response.data.overlappingEvents.map(e => e.title).join(', ');
+                    Swal.fire({
+                        title: 'Registration confirmed',
+                        text: `Warning: You have overlapping events at this time (${overlappingTitles}).`,
+                        icon: 'warning',
+                        confirmButtonColor: '#14b8a6'
+                    });
+                } else {
+                    Swal.fire('Success!', 'Registration confirmed. See you at the event.', 'success');
+                }
             }
         } catch (error) {
             Swal.fire('Error', error.response?.data?.message || 'Action failed', 'error');
         }
     };
 
-    if (loading) return <div className="text-center py-20"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-unihub-teal mx-auto"></div></div>;
+    if (loading) return (
+        <div className="flex flex-col items-center justify-center py-40">
+            <div className="w-12 h-12 border-4 border-unihub-teal/20 border-t-unihub-teal rounded-full animate-spin mb-4" />
+            <p className="text-[10px] font-black text-unihub-textMuted uppercase tracking-widest">Accessing Event Node...</p>
+        </div>
+    );
     if (!event) return null;
 
     const isDeadlinePassed = new Date() > new Date(event.registrationDeadline);
     const isFull = event.registeredCount >= event.capacity;
 
     return (
-        <div className="max-w-7xl mx-auto px-4 py-8 pb-16">
-            <button onClick={() => navigate(-1)} className="flex items-center text-unihub-textMuted hover:text-unihub-teal mb-8 transition-colors font-black text-xs uppercase tracking-widest">
-                <ArrowLeft className="w-4 h-4 mr-2" /> Back to events
+        <div className="max-w-7xl mx-auto py-12 px-6 space-y-12 pb-32">
+            <button onClick={() => navigate('/events')} className="inline-flex items-center gap-3 text-[10px] font-black text-unihub-textMuted hover:text-unihub-teal transition-all uppercase tracking-[0.3em] font-display group">
+                <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+                Discovery Portal
             </button>
 
-            <div className="bg-white rounded-[40px] shadow-soft border border-unihub-border overflow-hidden lg:grid lg:grid-cols-3">
-                {/* Left Content */}
-                <div className="lg:col-span-2 p-8 md:p-16">
-                    <div className="flex items-center gap-3 mb-8">
-                        <span className="px-3 py-1 bg-unihub-teal-light text-unihub-teal border border-unihub-teal/10 rounded-full text-[10px] font-black uppercase tracking-tighter">
-                            {event.category}
-                        </span>
-                        <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter border ${
-                            event.status === 'Cancelled' ? 'bg-rose-50 text-rose-700 border-rose-100' : 'bg-emerald-50 text-emerald-700 border-emerald-100'
+            <div className="relative group">
+                {/* Hero Card */}
+                <div className="glass-card rounded-[48px] border-white shadow-2xl overflow-hidden min-h-[450px] flex flex-col items-center justify-center text-center p-12 bg-white/60 backdrop-blur-3xl relative">
+                    <div className="absolute top-10 right-10">
+                        <div className={`px-5 py-2 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] border shadow-xl backdrop-blur-md ${
+                            event.status === 'Cancelled' ? 'bg-unihub-coral text-white border-unihub-coral' : 'bg-unihub-teal text-white border-unihub-teal'
                         }`}>
                             {event.status}
-                        </span>
-                        {event.isTrending && (
-                            <span className="px-3 py-1 bg-unihub-yellow text-unihub-text rounded-full text-[10px] font-black uppercase tracking-tighter shadow-sm animate-trending">
-                                🔥 Trending
+                        </div>
+                    </div>
+
+                    <div className="w-24 h-24 rounded-[32px] bg-slate-50 flex items-center justify-center text-4xl font-black text-unihub-teal shadow-2xl mb-8 border border-white/80">
+                        {event.organizer?.name?.charAt(0)}
+                    </div>
+
+                    <div className="space-y-6 max-w-4xl">
+                        <div className="flex justify-center flex-wrap gap-4">
+                            <span className="px-5 py-1.5 bg-unihub-teal/10 text-unihub-teal rounded-full text-[10px] font-black uppercase tracking-[0.2em]">
+                                {event.category}
                             </span>
-                        )}
-                    </div>
-
-                    <h1 className="text-4xl md:text-5xl font-black text-unihub-text mb-8 tracking-tight leading-tight">
-                        {event.title}
-                    </h1>
-                    
-                    <div className="flex flex-wrap gap-10 mb-12 pb-10 border-b border-gray-50">
-                        <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 rounded-2xl bg-unihub-teal/5 flex items-center justify-center text-unihub-teal shadow-sm">
-                                <Calendar className="w-6 h-6" />
-                            </div>
-                            <div>
-                                <p className="text-[10px] text-unihub-textMuted font-black uppercase tracking-widest">Event Date</p>
-                                <p className="font-black text-sm text-unihub-text">
-                                    {new Date(event.date).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-                                </p>
-                            </div>
+                            {event.isTrending && (
+                                <span className="px-5 py-1.5 bg-unihub-yellow/20 text-unihub-yellow rounded-full text-[10px] font-black uppercase tracking-[0.2em] flex items-center gap-2">
+                                    <Zap className="w-3.5 h-3.5 fill-unihub-yellow" /> Viral Entry
+                                </span>
+                            )}
                         </div>
-                        <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 rounded-2xl bg-unihub-teal/5 flex items-center justify-center text-unihub-teal shadow-sm">
-                                <Clock className="w-6 h-6" />
-                            </div>
-                            <div>
-                                <p className="text-[10px] text-unihub-textMuted font-black uppercase tracking-widest">Start Time</p>
-                                <p className="font-black text-sm text-unihub-text">{event.time}</p>
-                            </div>
+                        <h1 className="text-4xl md:text-7xl font-black text-slate-900 tracking-tight leading-[0.95] font-display">
+                            {event.title}
+                        </h1>
+                        <div className="flex items-center justify-center gap-8 text-[11px] font-black text-unihub-textMuted uppercase tracking-[0.2em]">
+                            <span className="flex items-center gap-2"><MapPin className="w-4 h-4 text-unihub-coral" /> {event.venue || 'Global Lab'}</span>
+                            <span className="flex items-center gap-2"><Calendar className="w-4 h-4 text-unihub-teal" /> {new Date(event.date).toLocaleDateString()}</span>
                         </div>
-                    </div>
-
-                    <div className="prose max-w-none text-unihub-textMuted mb-12 leading-relaxed text-lg">
-                        <h3 className="text-unihub-text text-xl font-black mb-6 flex items-center gap-3">
-                             <Trophy className="w-6 h-6 text-unihub-yellow" /> 
-                             Key Highlights
-                        </h3>
-                        <p className="font-medium italic">
-                            {event.description}
-                        </p>
-                    </div>
-
-                    <div className="bg-unihub-section rounded-[32px] p-8 flex flex-col md:flex-row md:items-center justify-between gap-8 border border-unihub-border/50 shadow-sm">
-                        <div className="flex items-center gap-5">
-                            <div className="w-16 h-16 rounded-[20px] bg-unihub-teal text-white flex items-center justify-center font-black text-2xl shadow-lg ring-8 ring-unihub-teal/5">
-                                {event.organizer?.name?.charAt(0)}
-                            </div>
-                            <div>
-                                <p className="text-[10px] text-unihub-textMuted font-black uppercase tracking-widest">Lead Organizer</p>
-                                <p className="font-black text-unihub-text text-xl">{event.organizer?.name}</p>
-                            </div>
-                        </div>
-                        <Link 
-                            to={`mailto:${event.organizer?.email}`} 
-                            className="px-8 py-3 bg-white border border-unihub-border text-unihub-text rounded-xl text-xs font-black shadow-sm hover:shadow-md transition-all active:scale-95 text-center"
-                        >
-                            ENQUIRE NOW
-                        </Link>
                     </div>
                 </div>
 
-                {/* Right Sidebar */}
-                <div className="bg-gray-50/50 p-8 md:p-12 border-l border-unihub-border">
-                    <div className="mb-12 text-center">
-                        <p className="text-[10px] font-black text-unihub-textMuted uppercase tracking-[0.2em] mb-6 opacity-60">COUNTDOWN TO LAUNCH</p>
-                        <div className="grid grid-cols-4 gap-3">
-                            {Object.entries(timeLeft).map(([unit, value]) => (
-                                <div key={unit} className="bg-white rounded-2xl shadow-sm border border-unihub-border p-4 flex flex-col items-center">
-                                    <span className="text-2xl font-black text-unihub-teal leading-none">{String(value).padStart(2, '0')}</span>
-                                    <span className="text-[8px] font-black text-unihub-textMuted uppercase tracking-tighter mt-2">{unit.toUpperCase()}</span>
+                {/* Main Content Grid */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 mt-12">
+                    {/* Left Column */}
+                    <div className="lg:col-span-8 space-y-12">
+                        <section className="bg-white/40 p-10 rounded-[40px] border border-white/60 space-y-6 shadow-sm">
+                            <h2 className="text-sm font-black text-unihub-textMuted flex items-center gap-2.5 uppercase tracking-[0.3em]">
+                                <Activity className="w-4 h-4 text-unihub-teal" /> Event Directive
+                            </h2>
+                            <p className="text-lg font-medium text-slate-600 leading-relaxed italic pl-6 border-l-4 border-unihub-teal/20 whitespace-pre-line">
+                                {event.description || 'No detailed instructions provided.'}
+                            </p>
+                        </section>
+
+                        <section className="space-y-8">
+                            <h2 className="text-sm font-black text-unihub-textMuted flex items-center gap-2.5 uppercase tracking-[0.3em] ml-2">
+                                <Clock className="w-4 h-4 text-unihub-teal" /> Timeframe Delta
+                            </h2>
+                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                                {Object.entries(timeLeft).map(([unit, value]) => (
+                                    <div key={unit} className="bg-white p-6 rounded-[28px] border border-slate-100 text-center space-y-2 shadow-sm">
+                                        <p className="text-2xl font-black text-slate-800 tracking-tighter">{String(value).padStart(2, '0')}</p>
+                                        <p className="text-[9px] font-black text-unihub-textMuted uppercase tracking-widest opacity-60">{unit}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        </section>
+
+                        <div className="p-10 rounded-[40px] border border-slate-100 bg-white group hover:border-unihub-teal/20 transition-all flex items-center justify-between gap-10">
+                           <div className="flex items-center gap-6">
+                                <div className="w-16 h-16 rounded-3xl bg-slate-50 flex items-center justify-center text-2xl font-black text-unihub-teal shadow-xl border border-white">
+                                    {event.organizer?.name?.charAt(0)}
+                                </div>
+                                <div>
+                                    <p className="text-[10px] font-black text-unihub-textMuted uppercase tracking-widest opacity-60">Session Lead</p>
+                                    <h4 className="text-xl font-black text-slate-800">{event.organizer?.name}</h4>
+                                </div>
+                           </div>
+                           <div className="hidden md:block text-right">
+                                <p className="text-[10px] font-black text-unihub-textMuted uppercase tracking-widest opacity-40">Verified Academic Activity</p>
+                                <p className="text-[9px] font-bold text-unihub-teal uppercase tracking-widest mt-1">UniHub Auth 412.0</p>
+                           </div>
+                        </div>
+                    </div>
+
+                    {/* Right Column (Sidebar) */}
+                    <div className="lg:col-span-4 space-y-6">
+                        <section className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-xl space-y-8">
+                            <h4 className="text-[10px] font-black text-unihub-textMuted uppercase tracking-[0.3em] opacity-60">Live Enrollment</h4>
+                            
+                            <div className="space-y-6">
+                                <div className="flex justify-between items-end">
+                                    <div>
+                                        <p className="text-4xl font-black text-unihub-teal tracking-tighter">{event.registeredCount}</p>
+                                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Locked Slots</p>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="text-2xl font-black text-slate-200 tracking-tighter">{event.capacity}</p>
+                                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Total</p>
+                                    </div>
+                                </div>
+
+                                <div className="w-full h-3 bg-slate-50 rounded-full overflow-hidden shadow-inner ring-4 ring-slate-50/50">
+                                    <div 
+                                        className="h-full bg-gradient-to-r from-unihub-teal to-unihub-tealHover transition-all duration-1000" 
+                                        style={{ width: `${(event.registeredCount / event.capacity) * 100}%` }}
+                                    />
+                                </div>
+
+                                <div className="pt-6 border-t border-slate-50">
+                                  {user?.role === 'student' && (
+                                      <button 
+                                          onClick={handleRegistration}
+                                          disabled={(!isRegistered && (isDeadlinePassed || isFull)) || event.status !== 'Upcoming'}
+                                          className={`w-full py-5 rounded-[24px] font-black text-[11px] tracking-[0.3em] shadow-xl transition-all active:scale-[0.98] disabled:opacity-50 uppercase ${
+                                              isRegistered 
+                                                  ? 'bg-unihub-coral/10 text-unihub-coral border border-unihub-coral/20 hover:bg-unihub-coral hover:text-white' 
+                                                  : 'bg-unihub-teal text-white hover:shadow-unihub-teal/30'
+                                          }`}
+                                      >
+                                          {isRegistered ? 'Release My Slot' : (isDeadlinePassed ? 'Deadline Passed' : isFull ? 'Event Full' : 'Secure My Slot')}
+                                      </button>
+                                  )}
+                                </div>
+                            </div>
+                        </section>
+
+                        <div className="bg-slate-50/50 p-8 rounded-[36px] border border-white space-y-6">
+                            {[
+                                { label: 'Temporal Node', value: event.time || '09:00 AM', icon: Clock },
+                                { label: 'Final Call', value: new Date(event.registrationDeadline).toLocaleDateString(), icon: AlertCircle },
+                            ].map(({ label, value, icon: Icon }) => (
+                                <div key={label} className="group">
+                                    <p className="text-[10px] font-black text-unihub-textMuted uppercase tracking-[0.3em] mb-2 flex items-center gap-2">
+                                        <Icon className="w-3.5 h-3.5 text-unihub-teal" /> {label}
+                                    </p>
+                                    <p className="text-lg font-black text-slate-700 tracking-tight">{value}</p>
                                 </div>
                             ))}
                         </div>
                     </div>
-
-                    <div className="space-y-8">
-                        <div className="bg-white rounded-3xl p-8 shadow-soft border border-unihub-border">
-                            <h4 className="font-black text-unihub-text text-xs uppercase tracking-[0.15em] mb-6 opacity-40">VENUE & LOGISTICS</h4>
-                            <div className="flex items-start gap-4">
-                                <div className="p-3 bg-unihub-coral/10 text-unihub-coral rounded-xl">
-                                    <MapPin className="w-6 h-6" />
-                                </div>
-                                <div>
-                                    <p className="font-black text-base text-unihub-text">{event.venue}</p>
-                                    <p className="text-xs font-bold text-unihub-textMuted mt-1 italic leading-snug">Official University Campus Environment</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="bg-white rounded-3xl p-8 shadow-soft border border-unihub-border">
-                            <h4 className="font-black text-unihub-text text-xs uppercase tracking-[0.15em] mb-6 opacity-40">ENROLLMENT ENGINE</h4>
-                            <div className="mb-6">
-                                <div className="flex justify-between text-[10px] font-black uppercase tracking-tighter mb-2">
-                                    <span className="text-unihub-textMuted">CAPACITY UTILIZATION</span>
-                                    <span className="text-unihub-teal">{Math.round((event.registeredCount / event.capacity) * 100)}%</span>
-                                </div>
-                                <div className="w-full h-2 bg-gray-50 rounded-full overflow-hidden">
-                                    <div className="h-full bg-unihub-teal transition-all duration-1000" style={{ width: `${(event.registeredCount / event.capacity) * 100}%` }}></div>
-                                </div>
-                                <div className="flex justify-between mt-3 text-[9px] font-black text-unihub-textMuted opacity-60">
-                                    <span>{event.registeredCount} SECURED</span>
-                                    <span>{event.capacity} TOTAL</span>
-                                </div>
-                            </div>
-                            
-                            <div className="flex items-center gap-2 mb-8 bg-unihub-section p-3 rounded-xl border border-unihub-border/30">
-                                <Zap className="w-4 h-4 text-unihub-yellow" />
-                                <p className="text-[9px] text-unihub-textMuted font-black uppercase tracking-widest">
-                                    DEADLINE: <span className="text-unihub-text">{new Date(event.registrationDeadline).toLocaleDateString()}</span>
-                                </p>
-                            </div>
-                            
-                            {user?.role === 'student' && (
-                                <button 
-                                    onClick={handleRegistration}
-                                    disabled={(!isRegistered && (isDeadlinePassed || isFull)) || event.status !== 'Upcoming'}
-                                    className={`w-full py-5 rounded-2xl font-black text-xs tracking-[0.2em] shadow-lg transition-all active:scale-95 disabled:opacity-50 disabled:grayscale ${
-                                        isRegistered 
-                                            ? 'bg-rose-50 text-rose-600 border border-rose-100 hover:bg-rose-600 hover:text-white' 
-                                            : 'bg-unihub-teal text-white hover:bg-unihub-tealHover'
-                                    }`}
-                                >
-                                    {isRegistered ? 'CANCEL REGISTRATION' : (isDeadlinePassed ? 'DEADLINE EXPIRED' : isFull ? 'EVENT AT CAPACITY' : 'SECURE MY SLOT')}
-                                </button>
-                            )}
-                        </div>
-                    </div>
                 </div>
             </div>
+
+            <p className="text-center text-[10px] font-black text-slate-200 uppercase tracking-[0.5em] pt-12">
+                UNIHUB EVENT NODE · {id.substring(0, 8).toUpperCase()}
+            </p>
         </div>
     );
 };
